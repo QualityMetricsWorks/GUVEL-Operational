@@ -1,0 +1,26 @@
+GUVEL OPERATIONAL — RELATIONSHIP MAP v1.4.1
+
+companies.id
+ -> company_members.company_id
+ -> customers.company_id
+ -> part_numbers.company_id
+
+auth.users.id
+ -> profiles.id
+ -> company_members.user_id
+
+customers.id
+ -> part_numbers.customer_id
+
+part_numbers.id
+ -> future operations.part_number_id
+ -> future part_number_machines.part_number_id
+ -> future scrap_catalog.part_number_id
+
+RULES
+1. Preserve existing IDs.
+2. company_id is the tenant boundary.
+3. customer_id is the customer relationship.
+4. Reuse existing relationships before creating new ones.
+5. No relationship may be renamed or removed without a documented migration.
+6. No frontend field name may be invented; verify DATABASE_SCHEMA_MAP first.

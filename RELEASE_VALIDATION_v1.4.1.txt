@@ -1,0 +1,19 @@
+RELEASE VALIDATION v1.4.1
+
+PASS: Frontend uses piece_cost.
+PASS: Database Schema Map records piece_cost.
+PASS: Existing company/customer relationships preserved.
+PASS: Existing RLS policy structure not modified.
+PASS: Visible portal version updated to v1.4.1.
+PASS: SQL patch is non-destructive.
+
+USER TEST:
+1. Log in.
+2. Open Part Numbers.
+3. Select Customer.
+4. Create Part Number.
+5. Enter costs.
+6. Save.
+7. Edit.
+8. Open profile.
+9. Delete a test record.

@@ -95,3 +95,26 @@ Part Number will be used by:
 2. Machine assignments
 3. Cycle-time configuration
 4. Scrap/Defect catalog
+
+
+============================================================
+v1.4.1 — PART NUMBERS REPAIR & ARCHITECTURE LOCK
+============================================================
+FIXED
+- cost_per_piece frontend mismatch corrected to piece_cost.
+- Visible version synchronized to v1.4.1.
+- config.js synchronized with current public project configuration.
+
+PRESERVED
+- companies.id
+- customers.id
+- part_numbers.id
+- part_numbers.company_id -> companies.id
+- part_numbers.customer_id -> customers.id
+- Existing RLS policy structure.
+
+ADDED
+- DATABASE_SCHEMA_MAP_v1.4.1.txt
+- RELATIONSHIP_MAP_v1.4.1.txt
+- SECURITY_MAP_v1.4.1.txt
+- RELEASE_VALIDATION_v1.4.1.txt

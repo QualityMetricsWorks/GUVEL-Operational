@@ -1,0 +1,15 @@
+GUVEL OPERATIONAL — SECURITY MAP v1.4.1
+
+Supabase Auth user
+ -> company_members.user_id
+ -> company_members.company_id
+ -> active company context
+
+Confirmed part_numbers policies:
+SELECT part_numbers_company_select
+INSERT part_numbers_company_insert
+UPDATE part_numbers_company_update
+DELETE part_numbers_company_delete
+
+RLS is the authoritative security boundary.
+Never expose service_role credentials in GitHub/frontend.

@@ -1,0 +1,26 @@
+GUVEL OPERATIONAL — DATABASE SCHEMA MAP v1.4.1
+
+CONFIRMED TABLE: public.part_numbers
+id | uuid
+company_id | uuid
+customer_id | uuid
+part_number | text
+description | text
+piece_cost | numeric
+scrap_cost | numeric
+created_at | timestamp with time zone
+
+OFFICIAL FIELD MAPPING
+UI: Cost per Piece -> DATABASE: piece_cost
+UI: Scrap Cost -> DATABASE: scrap_cost
+
+DO NOT USE: cost_per_piece
+
+CONFIRMED COMPANY SEMANTICS
+companies.id = immutable relationship identity
+companies.name = company display name
+companies.code = company short code
+
+Known demo company:
+name = GUVEL Demo Company
+code = GUVEL-DEMO

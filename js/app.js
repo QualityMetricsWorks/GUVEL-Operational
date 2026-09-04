@@ -133,11 +133,11 @@ async function loadPartNumbers(){
   const body=document.getElementById('pnBody');if(!body)return;
   if(!sb||!activeCompanyId){body.innerHTML='<tr><td colspan="6">Supabase configuration or active company is missing.</td></tr>';return;}
   body.innerHTML='<tr><td colspan="6">Loading part numbers...</td></tr>';
-  const {data,error}=await sb.from('part_numbers').select('id,company_id,customer_id,part_number,description,cost_per_piece,scrap_cost,customers(id,code,name)').eq('company_id',activeCompanyId).order('part_number');
+  const {data,error}=await sb.from('part_numbers').select('id,company_id,customer_id,part_number,description,piece_cost,scrap_cost,customers(id,code,name)').eq('company_id',activeCompanyId).order('part_number');
   if(error){body.innerHTML=`<tr><td colspan="6">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
   pnCache=data||[];
   if(!pnCache.length){body.innerHTML='<tr><td colspan="6">No part numbers registered yet.</td></tr>';return;}
-  body.innerHTML=pnCache.map(p=>`<tr><td><button class="link-button openPn" data-id="${p.id}">${escapeHtml(p.part_number)}</button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.cost_per_piece)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
+  body.innerHTML=pnCache.map(p=>`<tr><td><button class="link-button openPn" data-id="${p.id}">${escapeHtml(p.part_number)}</button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.piece_cost)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
   document.querySelectorAll('.openPn').forEach(b=>b.onclick=()=>openPnProfile(b.dataset.id));
   document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));
   document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
@@ -150,7 +150,7 @@ function openPnProfile(id){
     <div><strong>Part Number</strong><span>${escapeHtml(p.part_number)}</span></div>
     <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</span></div>
     <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
-    <div><strong>Cost per Piece</strong><span>${formatMoney(p.cost_per_piece)}</span></div>
+    <div><strong>Cost per Piece</strong><span>${formatMoney(p.piece_cost)}</span></div>
     <div><strong>Scrap Cost</strong><span>${formatMoney(p.scrap_cost)}</span></div>
     <div><strong>Company Scope</strong><span>Active company only</span></div>
   </div>
@@ -161,7 +161,7 @@ function startPnEdit(p){
   editingPnId=p.id;
   document.getElementById('pnNumber').value=p.part_number||'';
   document.getElementById('pnDescription').value=p.description||'';
-  document.getElementById('pnCostPiece').value=p.cost_per_piece??'';
+  document.getElementById('pnCostPiece').value=p.piece_cost??'';
   document.getElementById('pnScrapCost').value=p.scrap_cost??'';
   loadPnCustomers(p.customer_id);
   document.getElementById('pnFormTitle').textContent='Edit Part Number';
@@ -184,11 +184,11 @@ async function savePn(e){
   const customer_id=document.getElementById('pnCustomer').value;
   const part_number=document.getElementById('pnNumber').value.trim();
   const description=document.getElementById('pnDescription').value.trim()||null;
-  const cost_per_piece=numOrNull('pnCostPiece'),scrap_cost=numOrNull('pnScrapCost');
+  const piece_cost=numOrNull('pnCostPiece'),scrap_cost=numOrNull('pnScrapCost');
   if(!customer_id||!part_number)return pnMsg('Customer and Part Number are required.','error');
-  if((cost_per_piece!==null&&cost_per_piece<0)||(scrap_cost!==null&&scrap_cost<0))return pnMsg('Costs cannot be negative.','error');
+  if((piece_cost!==null&&piece_cost<0)||(scrap_cost!==null&&scrap_cost<0))return pnMsg('Costs cannot be negative.','error');
   pnMsg(editingPnId?'Updating part number...':'Saving part number...');
-  const payload={customer_id,part_number,description,cost_per_piece,scrap_cost};
+  const payload={customer_id,part_number,description,piece_cost,scrap_cost};
   let result;
   if(editingPnId)result=await sb.from('part_numbers').update(payload).eq('id',editingPnId).eq('company_id',activeCompanyId);
   else result=await sb.from('part_numbers').insert({...payload,company_id:activeCompanyId});
