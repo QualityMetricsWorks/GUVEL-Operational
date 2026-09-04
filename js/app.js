@@ -586,6 +586,25 @@ function bindCatalog(){
  loadPNSelect('scrapPartNumber');loadScrap();loadDowntime();
 }
 
+document.addEventListener('click', async (event)=>{
+  const pnButton=event.target.closest('[data-pn-profile]');
+  if(pnButton){
+    event.preventDefault();
+    event.stopPropagation();
+    const id=pnButton.dataset.pnProfile;
+    if(typeof openPartNumberProfile==='function') await openPartNumberProfile(id);
+    return;
+  }
+  const machineButton=event.target.closest('[data-machine-profile]');
+  if(machineButton){
+    event.preventDefault();
+    event.stopPropagation();
+    const id=machineButton.dataset.machineProfile;
+    if(typeof openMachineProfile==='function') await openMachineProfile(id);
+    return;
+  }
+});
+
 function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
 function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();if(current==='Catalog')bindCatalog();}
 document.getElementById('refreshBtn').onclick=()=>render();
