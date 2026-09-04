@@ -1,6 +1,6 @@
 const cfg=window.GUVEL_CONFIG;let sb=null;
 if(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY) sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
-const navItems=['Dashboard','Capture','Customers','Part Numbers','Machines','Catalog','Registers','Settings'];
+const navItems=['Dashboard','Capture','Customers','Part Numbers','Machines','Catalog','Registers','Personnel','Settings'];
 const nav=document.getElementById('nav'),view=document.getElementById('view');let current='Dashboard';
 function renderNav(){nav.innerHTML=navItems.map(x=>`<button class="nav-item ${x===current?'active':''}" data-page="${x}">${x}</button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{current=b.dataset.page;renderNav();render();});}
 function head(title,desc){return `<div class="page-head"><div><div class="eyebrow">GUVEL OPERATIONAL</div><h1>${title}</h1><p>${desc}</p></div></div>`}
@@ -636,8 +636,14 @@ document.addEventListener('click', async (event)=>{
   }
 });
 
-function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
-function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();if(current==='Catalog')bindCatalog();}
+function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Personnel':return '';case'Settings':return shiftsPage();default:return '';}}
+async function render(){
+  view.innerHTML=page();
+  if(current==='Capture') return await renderCaptureFoundation();
+  if(current==='Personnel') return await renderPersonnelPage();
+  if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}
+  if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();if(current==='Catalog')bindCatalog();
+}
 document.getElementById('refreshBtn').onclick=()=>render();
 
 let activeCompanyId=null;
@@ -694,11 +700,11 @@ bindAuth(); bootstrapSession();
    Capture Foundation & Personnel Module
    Contract: company_id scoped personnel; capture reads master data only.
 */
-const GUVEL_PHASE="1.7";
+const GUVEL_PHASE="1.7.A Hotfix 1";
 let personnelCache=[];
 
 async function loadPersonnel(){
-  const {data,error}=await supabase.from('personnel')
+  const {data,error}=await sb.from('personnel')
     .select('id,company_id,employee_id,first_name,last_name,role,is_active,created_at')
     .eq('company_id',activeCompanyId).order('last_name').order('first_name');
   if(error){console.error(error);alert(error.message);return [];}
@@ -708,7 +714,7 @@ async function loadPersonnel(){
 function personnelFullName(p){return [p.first_name,p.last_name].filter(Boolean).join(' ');}
 async function renderPersonnelPage(){
   await loadPersonnel();
-  const main=document.getElementById('mainContent')||document.querySelector('main');
+  const main=view;
   if(!main)return;
   main.innerHTML=`
     <section class="page-header"><div><h1>Personnel</h1><p>Operational personnel master data</p></div>
@@ -746,13 +752,13 @@ function showPersonnelForm(record=null){
       last_name:document.getElementById('p17_last_name').value.trim(),
       role:document.getElementById('p17_role').value,is_active:true};
     if(!payload.employee_id||!payload.first_name||!payload.last_name){alert('Employee ID, Name and Last Name are required.');return;}
-    let q=record?supabase.from('personnel').update(payload).eq('id',record.id):supabase.from('personnel').insert(payload);
+    let q=record?sb.from('personnel').update(payload).eq('id',record.id):sb.from('personnel').insert(payload);
     const {error}=await q;if(error){alert(error.message);return;}await renderPersonnelPage();
   };
 }
 async function deletePersonnel(id){
   if(!confirm('Delete this personnel record?'))return;
-  const {error}=await supabase.from('personnel').delete().eq('id',id);
+  const {error}=await sb.from('personnel').delete().eq('id',id);
   if(error){alert(error.message);return;}await renderPersonnelPage();
 }
 function personnelOptions(role, selected=''){
@@ -765,14 +771,14 @@ function personnelOptions(role, selected=''){
 async function renderCaptureFoundation(){
   await Promise.all([loadPersonnel()]);
   const [customersRes,pnRes,machineRes,shiftRes,opsRes]=await Promise.all([
-    supabase.from('customers').select('id,name,code').eq('company_id',activeCompanyId).order('name'),
-    supabase.from('part_numbers').select('id,customer_id,part_number,description').eq('company_id',activeCompanyId).order('part_number'),
-    supabase.from('machines').select('id,code,name').eq('company_id',activeCompanyId).order('code'),
-    supabase.from('shifts').select('id,code,name,start_time,end_time').eq('company_id',activeCompanyId).order('code'),
-    supabase.from('operations').select('id,part_number_id,operation_number,operation_name').eq('company_id',activeCompanyId).order('operation_number')
+    sb.from('customers').select('id,name,code').eq('company_id',activeCompanyId).order('name'),
+    sb.from('part_numbers').select('id,customer_id,part_number,description').eq('company_id',activeCompanyId).order('part_number'),
+    sb.from('machines').select('id,code,name').eq('company_id',activeCompanyId).order('code'),
+    sb.from('shifts').select('id,code,name,start_time,end_time').eq('company_id',activeCompanyId).order('code'),
+    sb.from('operations').select('id,part_number_id,operation_number,operation_name').eq('company_id',activeCompanyId).order('operation_number')
   ]);
   const customers=customersRes.data||[], partNumbers=pnRes.data||[], machines=machineRes.data||[], shifts=shiftRes.data||[], operations=opsRes.data||[];
-  const main=document.getElementById('mainContent')||document.querySelector('main'); if(!main)return;
+  const main=view; if(!main)return;
   main.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production capture foundation — Phase 1.7.A</p></div></section>
   <div class="panel"><h3>Production Information</h3><div class="form-grid">
     <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
@@ -796,7 +802,7 @@ async function renderCaptureFoundation(){
   };
   capPN.onchange=async()=>{
     const pnId=capPN.value;
-    const [relRes]=await Promise.all([supabase.from('part_number_machines').select('machine_id').eq('part_number_id',pnId)]);
+    const [relRes]=await Promise.all([sb.from('part_number_machines').select('machine_id').eq('part_number_id',pnId)]);
     const machineIds=new Set((relRes.data||[]).map(r=>r.machine_id));
     capMachine.innerHTML='<option value="">Select Machine</option>'+machines.filter(m=>machineIds.has(m.id)).map(m=>`<option value="${m.id}">${escapeHtml(m.code)} — ${escapeHtml(m.name)}</option>`).join('');
     capOperation.innerHTML='<option value="">Select Operation</option>'+operations.filter(o=>o.part_number_id===pnId).map(o=>`<option value="${o.id}">${escapeHtml(o.operation_number)}${o.operation_name?' — '+escapeHtml(o.operation_name):''}</option>`).join('');
@@ -825,22 +831,9 @@ async function renderCaptureFoundation(){
     const required=['shift_id','lot_number','customer_id','part_number_id','machine_id','operation_id','production_quantity'];
     const missing=required.filter(k=>payload[k]===null||payload[k]===''||Number.isNaN(payload[k]));
     if(missing.length){alert('Please complete all required production information.');return;}
-    const {error}=await supabase.from('production_captures').insert(payload);
+    const {error}=await sb.from('production_captures').insert(payload);
     if(error){console.error(error);alert(error.message);return;}
     alert('Production capture saved successfully.');
     await renderCaptureFoundation();
   };
 }
-/* Route extension */
-const __phase17OriginalRoute = typeof routePage==='function' ? routePage : null;
-if(__phase17OriginalRoute){
-  window.routePage=async function(pageName){
-    if(pageName==='personnel') return renderPersonnelPage();
-    if(pageName==='capture') return renderCaptureFoundation();
-    return __phase17OriginalRoute(pageName);
-  };
-}
-document.addEventListener('click',(e)=>{
-  const a=e.target.closest('[data-page="personnel"],[href="#personnel"]');
-  if(a){e.preventDefault();renderPersonnelPage();}
-});
