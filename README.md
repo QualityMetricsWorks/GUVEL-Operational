@@ -88,7 +88,7 @@ Before testing, make sure at least one Part Number exists.
 Phase 1.5 remains open until `USER_ACCEPTANCE_TEST_v1.5.txt` passes.
 
 
-## v1.6 — Machines UI Refinement
+## v1.6.1 — Machines UI Refinement
 
 No SQL execution is required for this version.
 
@@ -98,7 +98,7 @@ Changes are frontend-only:
 - close X for Machine Profile.
 
 
-## Formal Closure — v1.6
+## Formal Closure — v1.6.1
 
 Status: **CLOSED / ACCEPTED**
 

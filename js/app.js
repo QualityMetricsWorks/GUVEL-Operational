@@ -143,23 +143,70 @@ async function loadPartNumbers(){
   document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
 }
 function formatMoney(v){if(v===null||v===undefined||v==='')return '—';return Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
-function openPnProfile(id){
+
+async function openPnProfile(id){
   const p=pnCache.find(x=>x.id===id);if(!p)return;
-  const panel=document.getElementById('pnProfilePanel'), content=document.getElementById('pnProfileContent');
-  content.innerHTML=`<div class="profile-grid">
-    <div><strong>Part Number</strong><span>${escapeHtml(p.part_number)}</span></div>
-    <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</span></div>
-    <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
+  window.pnProfileId=id;
+  const panel=document.getElementById('pnProfilePanel'),content=document.getElementById('pnProfileContent');
+  const barcodeBars=(value)=>{
+    let seed=0;for(const ch of value)seed=(seed*31+ch.charCodeAt(0))>>>0;
+    let s='';for(let i=0;i<72;i++){seed=(seed*1664525+1013904223)>>>0;s+=`<i style="width:${(seed%4)+1}px"></i>`;}return s;
+  };
+  content.innerHTML=`<div class="section-title"><div><h2>${escapeHtml(p.part_number)}</h2><p>Operational master profile</p></div><button id="closePnProfile" class="secondary">× Close</button></div>
+  <div class="profile-grid">
+    <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'—')}</span></div>
     <div><strong>Cost per Piece</strong><span>${formatMoney(p.piece_cost)}</span></div>
     <div><strong>Scrap Cost</strong><span>${formatMoney(p.scrap_cost)}</span></div>
-    <div><strong>Company Scope</strong><span>Active company only</span></div>
+    <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
   </div>
-  <div class="profile-next"><strong>Reserved next links:</strong> Operations → Machines → Cycle Time → Defects. No new relationship is created in this phase.</div>`;
+  <div class="barcode-card"><strong>Automatic Identification — Part Number Barcode</strong><div class="barcode" aria-label="${escapeHtml(p.part_number)}">${barcodeBars(p.part_number)}</div><code>${escapeHtml(p.part_number)}</code></div>
+  <div class="tabs profile-tabs">
+    <button class="tab active" data-pntab="operations">Operations</button>
+    <button class="tab" data-pntab="machines">Machines</button>
+    <button class="tab" data-pntab="cycles">Cycle Times</button>
+    <button class="tab" data-pntab="defects">Defects</button>
+  </div>
+  <div id="pnTabOperations"></div><div id="pnTabMachines" style="display:none"></div><div id="pnTabCycles" style="display:none"></div><div id="pnTabDefects" style="display:none"></div>`;
   panel.style.display='block';
-  const close=document.getElementById('closeMachineProfile');
-  if(close)close.onclick=closeMachineProfile;
+  document.getElementById('closePnProfile').onclick=()=>panel.style.display='none';
+  document.querySelectorAll('[data-pntab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-pntab]').forEach(x=>x.classList.remove('active'));b.classList.add('active');['operations','machines','cycles','defects'].forEach(k=>document.getElementById('pnTab'+k[0].toUpperCase()+k.slice(1)).style.display=k===b.dataset.pntab?'block':'none');});
+  await loadPnProfileOperations(id);await loadPnProfileMachines(id);await loadPnProfileCycles(id);await loadPnProfileDefects(id);
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
+async function loadPnProfileOperations(partId){
+ const box=document.getElementById('pnTabOperations');if(!box)return;
+ box.innerHTML=`<div class="panel section"><h3>Operations</h3><form id="pnOpForm"><div class="form-grid"><div class="field"><label>Operation Number *</label><input id="pnpOpNumber" required></div><div class="field"><label>Operation Name *</label><input id="pnpOpName" required></div></div><div class="actions"><button class="primary">Add Operation</button></div><div id="pnpOpMsg" class="status"></div></form><div class="table-wrap"><table><thead><tr><th>Operation</th><th>Name</th><th>Action</th></tr></thead><tbody id="pnpOpsBody"></tbody></table></div></div>`;
+ const load=async()=>{const {data,error}=await sb.from('operations').select('id,operation_number,operation_name').eq('company_id',activeCompanyId).eq('part_number_id',partId).order('operation_number');const body=document.getElementById('pnpOpsBody');body.innerHTML=error?`<tr><td colspan="3">${escapeHtml(error.message)}</td></tr>`:(data||[]).map(o=>`<tr><td>${escapeHtml(o.operation_number)}</td><td>${escapeHtml(o.operation_name)}</td><td><button class="danger pnpDelOp" data-id="${o.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="3">No operations.</td></tr>';document.querySelectorAll('.pnpDelOp').forEach(b=>b.onclick=async()=>{if(!confirm('Delete operation? Dependent defects/cycle times may prevent deletion.'))return;const r=await sb.from('operations').delete().eq('id',b.dataset.id).eq('company_id',activeCompanyId);if(r.error)return alert(r.error.message);await load();await loadPnProfileCycles(partId);await loadPnProfileDefects(partId);});};
+ document.getElementById('pnOpForm').onsubmit=async e=>{e.preventDefault();const operation_number=document.getElementById('pnpOpNumber').value.trim(),operation_name=document.getElementById('pnpOpName').value.trim();const r=await sb.from('operations').insert({company_id:activeCompanyId,part_number_id:partId,operation_number,operation_name,ideal_cycle_time_seconds:null});if(r.error){document.getElementById('pnpOpMsg').textContent=r.error.message;return;}e.target.reset();document.getElementById('pnpOpMsg').textContent='Operation added.';await load();await loadPnProfileCycles(partId);};
+ await load();
+}
+async function loadPnProfileMachines(partId){
+ const box=document.getElementById('pnTabMachines');if(!box)return;
+ const [{data:machines},{data:links}]=await Promise.all([
+   sb.from('machines').select('id,code,name,brand').eq('company_id',activeCompanyId).order('code'),
+   sb.from('part_number_machines').select('machine_id').eq('part_number_id',partId)
+ ]);
+ const selected=new Set((links||[]).map(x=>x.machine_id));
+ box.innerHTML=`<div class="panel section"><h3>Machines</h3><p>Relationships are managed here from the Part Number Profile. Machine Profiles are read-only for these links.</p><div class="machine-check-list">${(machines||[]).map(m=>`<label><input type="checkbox" class="pnpMachine" value="${m.id}" ${selected.has(m.id)?'checked':''}> <strong>${escapeHtml(m.code)}</strong> — ${escapeHtml(m.name||'')}</label>`).join('')||'No machines registered.'}</div><div class="actions"><button id="pnpSaveMachines" class="primary">Save Machine</button></div><div id="pnpMachineMsg" class="status"></div></div>`;
+ document.getElementById('pnpSaveMachines').onclick=async()=>{const desired=[...document.querySelectorAll('.pnpMachine:checked')].map(x=>x.value);const current=[...selected];const remove=current.filter(x=>!desired.includes(x)),add=desired.filter(x=>!current.includes(x));let errors=[];if(remove.length){const r=await sb.from('part_number_machines').delete().eq('part_number_id',partId).in('machine_id',remove);if(r.error)errors.push(r.error.message);}if(add.length){const r=await sb.from('part_number_machines').insert(add.map(machine_id=>({company_id:activeCompanyId,part_number_id:partId,machine_id})));if(r.error)errors.push(r.error.message);}document.getElementById('pnpMachineMsg').textContent=errors.length?errors.join(' | '):'Machine links saved.';if(!errors.length)await loadPnProfileCycles(partId);};
+}
+async function loadPnProfileCycles(partId){
+ const box=document.getElementById('pnTabCycles');if(!box)return;
+ const [{data:ops},{data:machines},{data:rows,error}]=await Promise.all([
+  sb.from('operations').select('id,operation_number,operation_name').eq('company_id',activeCompanyId).eq('part_number_id',partId).order('operation_number'),
+  sb.from('part_number_machines').select('machine_id,machines(id,code,name)').eq('part_number_id',partId),
+  sb.from('operation_machine_cycle_times').select('id,operation_id,machine_id,cycle_time_seconds,operations(operation_number,operation_name),machines(code,name)').eq('company_id',activeCompanyId).eq('part_number_id',partId)
+ ]);
+ box.innerHTML=`<div class="panel section"><h3>Cycle Times</h3><form id="pnpCycleForm"><div class="form-grid"><div class="field"><label>Operation *</label><select id="pnpCycleOp" required><option value="">Select</option>${(ops||[]).map(o=>`<option value="${o.id}">${escapeHtml(o.operation_number)} — ${escapeHtml(o.operation_name)}</option>`).join('')}</select></div><div class="field"><label>Machine *</label><select id="pnpCycleMachine" required><option value="">Select</option>${(machines||[]).map(x=>`<option value="${x.machine_id}">${escapeHtml(x.machines?.code||'')} — ${escapeHtml(x.machines?.name||'')}</option>`).join('')}</select></div><div class="field"><label>Cycle Time (seconds) *</label><input id="pnpCycleTime" type="number" min="0" step="0.001" required></div></div><div class="actions"><button class="primary">Save Cycle Time</button></div><div id="pnpCycleMsg" class="status"></div></form><div class="table-wrap"><table><thead><tr><th>Operation</th><th>Machine</th><th>Cycle Time (s)</th><th>Action</th></tr></thead><tbody>${error?`<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`:(rows||[]).map(r=>`<tr><td>${escapeHtml(r.operations?.operation_number||'')} — ${escapeHtml(r.operations?.operation_name||'')}</td><td>${escapeHtml(r.machines?.code||'')} — ${escapeHtml(r.machines?.name||'')}</td><td>${r.cycle_time_seconds}</td><td><button class="danger pnpDelCycle" data-id="${r.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="4">No cycle times.</td></tr>'}</tbody></table></div></div>`;
+ document.getElementById('pnpCycleForm').onsubmit=async e=>{e.preventDefault();const payload={company_id:activeCompanyId,part_number_id:partId,operation_id:document.getElementById('pnpCycleOp').value,machine_id:document.getElementById('pnpCycleMachine').value,cycle_time_seconds:Number(document.getElementById('pnpCycleTime').value)};const r=await sb.from('operation_machine_cycle_times').upsert(payload,{onConflict:'operation_id,machine_id'});if(r.error){document.getElementById('pnpCycleMsg').textContent=r.error.message;return;}await loadPnProfileCycles(partId);};
+ document.querySelectorAll('.pnpDelCycle').forEach(b=>b.onclick=async()=>{if(!confirm('Delete cycle time?'))return;const r=await sb.from('operation_machine_cycle_times').delete().eq('id',b.dataset.id).eq('company_id',activeCompanyId);if(r.error)return alert(r.error.message);await loadPnProfileCycles(partId);});
+}
+async function loadPnProfileDefects(partId){
+ const box=document.getElementById('pnTabDefects');if(!box)return;
+ const {data,error}=await sb.from('scrap_catalog').select('code,defect,category,operations(operation_number,operation_name)').eq('company_id',activeCompanyId).eq('part_number_id',partId).order('code');
+ box.innerHTML=`<div class="panel section"><h3>Defects</h3><p>Read-only view of defects already managed in Catalog.</p><div class="table-wrap"><table><thead><tr><th>Operation</th><th>Code</th><th>Defect</th><th>Category</th></tr></thead><tbody>${error?`<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`:(data||[]).map(d=>`<tr><td>${escapeHtml(d.operations?.operation_number||'')} — ${escapeHtml(d.operations?.operation_name||'')}</td><td>${escapeHtml(d.code)}</td><td>${escapeHtml(d.defect)}</td><td>${escapeHtml(d.category)}</td></tr>`).join('')||'<tr><td colspan="4">No defects registered for this Part Number.</td></tr>'}</tbody></table></div></div>`;
+}
+
 function closeMachineProfile(){
   const panel=document.getElementById('machineProfilePanel');
   if(panel)panel.style.display='none';
@@ -220,7 +267,7 @@ function bindPartNumbers(){
 
 
 function machinesPage(){
-  return head('Machines','Create company-scoped machines and maintain their many-to-many links to Part Numbers.')
+  return head('Machines','Create company-scoped machines. Linked Part Numbers are viewed here and managed from the Part Number Profile.')
   +`<div class="notice">Architecture preserved: machines.company_id → companies.id. Links are stored in part_number_machines; neither machines nor part_numbers are duplicated.</div>
   <div class="panel section">
     <div class="section-title"><div><h2 id="machineFormTitle">Add Machine</h2><p id="machineFormDesc">A machine belongs to the active company. Part Number links are optional and managed through the relationship table.</p></div><button id="cancelMachineEdit" class="secondary" style="display:none">Cancel Edit</button></div>
