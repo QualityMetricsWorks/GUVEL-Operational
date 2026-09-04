@@ -638,11 +638,35 @@ document.addEventListener('click', async (event)=>{
 
 function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Personnel':return '';case'Settings':return shiftsPage();default:return '';}}
 async function render(){
-  view.innerHTML=page();
-  if(current==='Capture') return await renderCaptureFoundation();
-  if(current==='Personnel') return await renderPersonnelPage();
-  if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}
-  if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();if(current==='Catalog')bindCatalog();
+  try{
+    if(!view) throw new Error('Application view container was not found.');
+    if(current==='Personnel'){
+      view.innerHTML='';
+      await renderPersonnelPage();
+      return;
+    }
+    if(current==='Capture'){
+      view.innerHTML='';
+      await renderCaptureFoundation();
+      return;
+    }
+    view.innerHTML=page();
+    if(current==='Dashboard'){
+      dashTab('General');
+      document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active'); dashTab(b.dataset.tab);
+      });
+    }
+    if(current==='Settings') bindShifts();
+    if(current==='Customers') bindCustomers();
+    if(current==='Part Numbers') bindPartNumbers();
+    if(current==='Machines') bindMachines();
+    if(current==='Catalog') bindCatalog();
+  }catch(error){
+    console.error('GUVEL render error:',error);
+    view.innerHTML=`<div class="panel"><h2>Module loading error</h2><p>${escapeHtml(error.message||'Unknown error')}</p></div>`;
+  }
 }
 document.getElementById('refreshBtn').onclick=()=>render();
 
@@ -693,14 +717,13 @@ function bindAuth(){
  document.getElementById('showLogin').onclick=()=>{document.getElementById('authMode').textContent='Sign In';document.getElementById('signupForm').classList.add('hidden');document.getElementById('loginForm').classList.remove('hidden');authMsg('');};
  document.getElementById('logoutBtn').onclick=logout;
 }
-bindAuth(); bootstrapSession();
-
+/* Startup is intentionally deferred until all module renderers are defined. */
 
 /* ===== GUVEL Operational Phase 1.7.A =====
    Capture Foundation & Personnel Module
    Contract: company_id scoped personnel; capture reads master data only.
 */
-const GUVEL_PHASE="1.7.A Hotfix 1";
+const GUVEL_PHASE="1.7.A Hotfix 2";
 let personnelCache=[];
 
 async function loadPersonnel(){
@@ -837,3 +860,10 @@ async function renderCaptureFoundation(){
     await renderCaptureFoundation();
   };
 }
+
+
+/* ===== GUARANTEED APPLICATION STARTUP — HOTFIX 2 ===== */
+window.addEventListener('DOMContentLoaded',()=>{
+  bindAuth();
+  bootstrapSession();
+});
