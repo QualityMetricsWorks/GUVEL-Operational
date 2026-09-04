@@ -56,3 +56,33 @@ This phase reuses the existing data model:
 It intentionally adds no new relationship between Company, Customer and Part Number.
 
 The included `js/config.js` contains the current project URL and publishable key for this development project.
+
+
+## Formal Closure — v1.4.2
+
+This package formally closes v1.4.2 as an accepted baseline.
+
+Architecture Lock v2 includes:
+- DATABASE_SCHEMA_MAP
+- RELATIONSHIP_MAP
+- SECURITY_MAP
+- VERSION_HISTORY
+- SYSTEM_CONTRACT
+- LESSONS_LEARNED
+
+Do not begin the next phase without reviewing these documents.
+
+
+## Phase 1.5 — Machines
+
+This phase reuses the existing `machines` and `part_number_machines`
+tables from the Foundation. It does not create duplicate schema.
+
+Run:
+`sql/009_phase_1_5_machines.sql`
+
+Then deploy the frontend files.
+
+Before testing, make sure at least one Part Number exists.
+
+Phase 1.5 remains open until `USER_ACCEPTANCE_TEST_v1.5.txt` passes.

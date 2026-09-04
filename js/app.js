@@ -211,8 +211,155 @@ function bindPartNumbers(){
   loadPnCustomers();loadPartNumbers();
 }
 
-function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return table('Machines',['Brand','Code','Name','Linked Part Numbers']);case'Catalog':return table('Catalog',['Type','Code','Name / Defect','Category','Part Number','Operation']);case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
-function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();}
+
+function machinesPage(){
+  return head('Machines','Create company-scoped machines and maintain their many-to-many links to Part Numbers.')
+  +`<div class="notice">Architecture preserved: machines.company_id → companies.id. Links are stored in part_number_machines; neither machines nor part_numbers are duplicated.</div>
+  <div class="panel section">
+    <div class="section-title"><div><h2 id="machineFormTitle">Add Machine</h2><p id="machineFormDesc">A machine belongs to the active company. Part Number links are optional and managed through the relationship table.</p></div><button id="cancelMachineEdit" class="secondary" style="display:none">Cancel Edit</button></div>
+    <form id="machineForm"><div class="form-grid">
+      <div class="field"><label>Brand</label><input id="machineBrand" maxlength="120" placeholder="Brand"></div>
+      <div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div>
+      <div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div>
+    </div>
+    <div class="section"><h2>Linked Part Numbers</h2><p id="machineLinkHint" class="muted">Select the Part Numbers that can run on this machine.</p><div id="machinePartNumberLinks" class="link-list">Loading Part Numbers...</div></div>
+    <div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div>
+    </form>
+  </div>
+  <div class="section-title"><div><h2>Registered Machines</h2><p>Machine master data is company-scoped. Linked Part Numbers are counted from part_number_machines.</p></div><button id="reloadMachines" class="secondary">Refresh</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Brand</th><th>Code</th><th>Name</th><th>Linked Part Numbers</th><th>Actions</th></tr></thead><tbody id="machinesBody"><tr><td colspan="5">Loading machines...</td></tr></tbody></table></div>
+  <div class="panel section" id="machineProfilePanel" style="display:none"><div class="section-title"><div><h2>Machine Profile</h2><p>Machine master data and linked Part Numbers.</p></div></div><div id="machineProfileContent"></div></div>`;
+}
+let editingMachineId=null, machineCache=[], machinePnCache=[];
+function machineMsg(text,type=''){const el=document.getElementById('machineMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
+function escAttr(v){return escapeHtml(v||'').replace(/"/g,'&quot;');}
+async function loadMachinePartNumbers(selectedIds=[]){
+  const box=document.getElementById('machinePartNumberLinks');if(!box)return;
+  if(!sb||!activeCompanyId){box.textContent='Supabase configuration or active company is missing.';return;}
+  box.textContent='Loading Part Numbers...';
+  const {data,error}=await sb.from('part_numbers').select('id,part_number,description,customer_id,customers(code,name)').eq('company_id',activeCompanyId).order('part_number');
+  if(error){box.textContent='Unable to load Part Numbers: '+error.message;return;}
+  machinePnCache=data||[];
+  if(!machinePnCache.length){box.innerHTML='<div class="empty-links">No Part Numbers registered yet. Create Part Numbers first; you can link them later.</div>';return;}
+  const selected=new Set(selectedIds);
+  box.innerHTML=machinePnCache.map(p=>`<label class="link-check"><input type="checkbox" name="machinePn" value="${p.id}" ${selected.has(p.id)?'checked':''}><span><strong>${escapeHtml(p.part_number)}</strong><small>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')} ${p.description?`· ${escapeHtml(p.description)}`:''}</small></span></label>`).join('');
+}
+function selectedMachinePnIds(){return Array.from(document.querySelectorAll('input[name="machinePn"]:checked')).map(x=>x.value);}
+async function loadMachines(){
+  const body=document.getElementById('machinesBody');if(!body)return;
+  if(!sb||!activeCompanyId){body.innerHTML='<tr><td colspan="5">Supabase configuration or active company is missing.</td></tr>';return;}
+  body.innerHTML='<tr><td colspan="5">Loading machines...</td></tr>';
+  const {data,error}=await sb.from('machines').select('id,company_id,brand,code,name,created_at,part_number_machines(part_number_id,part_numbers(id,part_number,description))').eq('company_id',activeCompanyId).order('code');
+  if(error){body.innerHTML=`<tr><td colspan="5">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
+  machineCache=data||[];
+  if(!machineCache.length){body.innerHTML='<tr><td colspan="5">No machines registered yet.</td></tr>';return;}
+  body.innerHTML=machineCache.map(m=>{
+    const links=Array.isArray(m.part_number_machines)?m.part_number_machines:[];
+    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button class="link-button openMachine" data-id="${m.id}">${escapeHtml(m.code)}</button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
+  }).join('');
+  document.querySelectorAll('.openMachine').forEach(b=>b.onclick=()=>openMachineProfile(b.dataset.id));
+  document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));
+  document.querySelectorAll('.deleteMachine').forEach(b=>b.onclick=()=>deleteMachine(b.dataset.id));
+}
+function openMachineProfile(id){
+  const m=machineCache.find(x=>x.id===id);if(!m)return;
+  const links=(m.part_number_machines||[]).map(x=>x.part_numbers).filter(Boolean);
+  const panel=document.getElementById('machineProfilePanel'),content=document.getElementById('machineProfileContent');
+  content.innerHTML=`<div class="profile-grid">
+    <div><strong>Brand</strong><span>${escapeHtml(m.brand||'—')}</span></div>
+    <div><strong>Machine Code</strong><span>${escapeHtml(m.code)}</span></div>
+    <div><strong>Machine Name</strong><span>${escapeHtml(m.name)}</span></div>
+    <div><strong>Company Scope</strong><span>Active company only</span></div>
+  </div>
+  <div class="profile-next"><strong>Linked Part Numbers (${links.length})</strong>${links.length?`<ul class="profile-list">${links.map(p=>`<li><strong>${escapeHtml(p.part_number)}</strong>${p.description?` — ${escapeHtml(p.description)}`:''}</li>`).join('')}</ul>`:'<p>No Part Numbers linked yet.</p>'}
+  <div class="profile-next"><strong>Relationship:</strong> part_numbers ↔ part_number_machines ↔ machines. Operations and cycle times remain unchanged and are reserved for later phases.</div>`;
+  panel.style.display='block';panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function startMachineEdit(m){
+  editingMachineId=m.id;
+  document.getElementById('machineBrand').value=m.brand||'';
+  document.getElementById('machineCode').value=m.code||'';
+  document.getElementById('machineName').value=m.name||'';
+  const links=(m.part_number_machines||[]).map(x=>x.part_number_id);
+  await loadMachinePartNumbers(links);
+  document.getElementById('machineFormTitle').textContent='Edit Machine';
+  document.getElementById('machineFormDesc').textContent='Existing machine ID and company relationship are preserved. Linked Part Numbers are synchronized through part_number_machines.';
+  document.getElementById('machineSubmit').textContent='Update Machine';
+  document.getElementById('cancelMachineEdit').style.display='inline-block';
+  machineMsg('');window.scrollTo({top:0,behavior:'smooth'});
+}
+async function cancelMachineEdit(){
+  editingMachineId=null;
+  const f=document.getElementById('machineForm');if(f)f.reset();
+  document.getElementById('machineFormTitle').textContent='Add Machine';
+  document.getElementById('machineFormDesc').textContent='A machine belongs to the active company. Part Number links are optional and managed through the relationship table.';
+  document.getElementById('machineSubmit').textContent='Save Machine';
+  document.getElementById('cancelMachineEdit').style.display='none';machineMsg('');
+  await loadMachinePartNumbers();
+}
+async function syncMachinePartNumbers(machineId,partNumberIds){
+  const existing=await sb.from('part_number_machines').select('part_number_id').eq('machine_id',machineId);
+  if(existing.error)return existing;
+  const currentIds=(existing.data||[]).map(x=>x.part_number_id);
+  const wanted=new Set(partNumberIds), current=new Set(currentIds);
+  const remove=currentIds.filter(id=>!wanted.has(id));
+  const add=partNumberIds.filter(id=>!current.has(id));
+  if(remove.length){
+    const r=await sb.from('part_number_machines').delete().eq('machine_id',machineId).in('part_number_id',remove);
+    if(r.error)return r;
+  }
+  if(add.length){
+    const rows=add.map(part_number_id=>({part_number_id,machine_id:machineId}));
+    const r=await sb.from('part_number_machines').insert(rows);
+    if(r.error)return r;
+  }
+  return {error:null};
+}
+async function saveMachine(e){
+  e.preventDefault();
+  if(!sb||!activeCompanyId)return machineMsg('Supabase configuration or active company is missing.','error');
+  const brand=document.getElementById('machineBrand').value.trim()||null;
+  const code=document.getElementById('machineCode').value.trim();
+  const name=document.getElementById('machineName').value.trim();
+  const partNumberIds=selectedMachinePnIds();
+  if(!code||!name)return machineMsg('Machine code and machine name are required.','error');
+  machineMsg(editingMachineId?'Updating machine...':'Saving machine...');
+  let machineId=editingMachineId;
+  let result;
+  if(editingMachineId){
+    result=await sb.from('machines').update({brand,code,name}).eq('id',editingMachineId).eq('company_id',activeCompanyId).select('id').single();
+  }else{
+    result=await sb.from('machines').insert({company_id:activeCompanyId,brand,code,name}).select('id').single();
+  }
+  if(result.error){
+    const msg=result.error.code==='23505'?'This Machine Code already exists for the active company.':result.error.message;
+    return machineMsg(msg,'error');
+  }
+  machineId=result.data?.id||machineId;
+  machineMsg('Synchronizing Part Number links...');
+  const linkResult=await syncMachinePartNumbers(machineId,partNumberIds);
+  if(linkResult.error)return machineMsg('Machine saved, but Part Number links could not be synchronized: '+linkResult.error.message,'error');
+  const wasEditing=!!editingMachineId;
+  await cancelMachineEdit();
+  machineMsg(wasEditing?'Machine and links updated successfully.':'Machine saved successfully.','success');
+  await loadMachines();
+}
+async function deleteMachine(id){
+  if(!confirm('Delete this Machine? Linked Part Number relationships will be removed. Production records may prevent deletion.'))return;
+  const {error}=await sb.from('machines').delete().eq('id',id).eq('company_id',activeCompanyId);
+  if(error){const msg=error.code==='23503'?'This Machine cannot be deleted because operational records exist.':error.message;alert(msg);return;}
+  if(editingMachineId===id)await cancelMachineEdit();
+  await loadMachines();
+}
+function bindMachines(){
+  document.getElementById('machineForm').onsubmit=saveMachine;
+  document.getElementById('cancelMachineEdit').onclick=cancelMachineEdit;
+  document.getElementById('reloadMachines').onclick=loadMachines;
+  loadMachinePartNumbers();loadMachines();
+}
+
+function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return table('Catalog',['Type','Code','Name / Defect','Category','Part Number','Operation']);case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
+function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();}
 document.getElementById('refreshBtn').onclick=()=>render();
 
 let activeCompanyId=null;
