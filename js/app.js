@@ -137,7 +137,7 @@ async function loadPartNumbers(){
   if(error){body.innerHTML=`<tr><td colspan="6">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
   pnCache=data||[];
   if(!pnCache.length){body.innerHTML='<tr><td colspan="6">No part numbers registered yet.</td></tr>';return;}
-  body.innerHTML=pnCache.map(p=>`<tr><td><button class="link-button openPn" data-id="${p.id}">${escapeHtml(p.part_number)}</button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.piece_cost)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
+  body.innerHTML=pnCache.map(p=>`<tr><td><button type="button" class="profile-entry profile-entry-pn openPn" data-id="${p.id}" title="Open Part Number Profile"><span>${escapeHtml(p.part_number)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.piece_cost)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
   document.querySelectorAll('.openPn').forEach(b=>b.onclick=()=>openPnProfile(b.dataset.id));
   document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));
   document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
@@ -145,51 +145,78 @@ async function loadPartNumbers(){
 function formatMoney(v){if(v===null||v===undefined||v==='')return '—';return Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
 
 async function openPnProfile(id){
-  const p=pnCache.find(x=>x.id===id);if(!p)return;
+  const p=pnCache.find(x=>x.id===id);
+  if(!p){alert('Part Number record was not found. Please refresh the list.');return;}
   window.pnProfileId=id;
-  const panel=document.getElementById('pnProfilePanel'),content=document.getElementById('pnProfileContent');
+  const panel=document.getElementById('pnProfilePanel');
+  const content=document.getElementById('pnProfileContent');
+  if(!panel||!content){alert('Part Number Profile container is unavailable.');return;}
+
   const barcodeSvg=(raw)=>{
     const value=String(raw||'').toUpperCase();
-    const alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%';
     const patterns={
       '0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw','5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn',
       'A':'wnnnnwnnw','B':'nnwnnwnnw','C':'wnwnnwnnn','D':'nnnnwwnnw','E':'wnnnwwnnn','F':'nnwnwwnnn','G':'nnnnnwwnw','H':'wnnnnwwnn','I':'nnwnnwwnn','J':'nnnnwwwnn',
       'K':'wnnnnnnww','L':'nnwnnnnww','M':'wnwnnnnwn','N':'nnnnwnnww','O':'wnnnwnnwn','P':'nnwnwnnwn','Q':'nnnnnnwww','R':'wnnnnnwwn','S':'nnwnnnwwn','T':'nnnnwnwwn',
       'U':'wwnnnnnnw','V':'nwwnnnnnw','W':'wwwnnnnnn','X':'nwnnwnnnw','Y':'wwnnwnnnn','Z':'nwwnwnnnn','-':'nwnnnnwnw','.':'wwnnnnwnn',' ':'nwwnnnwnn','$':'nwnwnwnnn','/':'nwnwnnnwn','+':'nwnnnwnwn','%':'nnnwnwnwn','*':'nwnnwnwnn'
     };
-    const safe=[...value].map(c=>alphabet.includes(c)?c:'-').join('');
+    const safe=[...value].map(c=>patterns[c]?c:'-').join('');
     const encoded='*'+safe+'*';
-    let x=10, bars='';
+    let x=12,bars='';
     for(const ch of encoded){
-      const p=patterns[ch];
-      for(let i=0;i<p.length;i++){
-        const w=p[i]==='w'?3:1;
-        if(i%2===0) bars+=`<rect x="${x}" y="10" width="${w}" height="80" fill="#111"/>`;
+      const pattern=patterns[ch];
+      for(let i=0;i<pattern.length;i++){
+        const w=pattern[i]==='w'?3:1;
+        if(i%2===0) bars+=`<rect x="${x}" y="8" width="${w}" height="78" fill="#111"/>`;
         x+=w;
       }
       x+=1;
     }
-    return `<svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="${x+10}" height="115" viewBox="0 0 ${x+10} 115" role="img" aria-label="Code 39 ${safe}"><rect width="100%" height="100%" fill="white"/>${bars}<text x="${(x+10)/2}" y="108" text-anchor="middle" font-family="monospace" font-size="14" fill="#111">${safe}</text></svg>`;
+    const width=x+12;
+    return `<svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="${width}" height="112" viewBox="0 0 ${width} 112" role="img" aria-label="Code 39 barcode for ${escapeHtml(safe)}"><rect width="100%" height="100%" fill="#fff"/>${bars}<text x="${width/2}" y="104" text-anchor="middle" font-family="monospace" font-size="14" fill="#111">${escapeHtml(safe)}</text></svg>`;
   };
-  content.innerHTML=`<div class="section-title"><div><h2>${escapeHtml(p.part_number)}</h2><p>Operational master profile</p></div><button id="closePnProfile" class="secondary">× Close</button></div>
-  <div class="profile-grid">
-    <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'—')}</span></div>
-    <div><strong>Cost per Piece</strong><span>${formatMoney(p.piece_cost)}</span></div>
-    <div><strong>Scrap Cost</strong><span>${formatMoney(p.scrap_cost)}</span></div>
-    <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
-  </div>
-  <div class="barcode-card"><strong>Automatic Identification — Part Number Barcode</strong><div class="barcode" aria-label="${escapeHtml(p.part_number)}">${barcodeBars(p.part_number)}</div><code>${escapeHtml(p.part_number)}</code></div>
-  <div class="tabs profile-tabs">
-    <button class="tab active" data-pntab="operations">Operations</button>
-    <button class="tab" data-pntab="machines">Machines</button>
-    <button class="tab" data-pntab="cycles">Cycle Times</button>
-    <button class="tab" data-pntab="defects">Defects</button>
-  </div>
-  <div id="pnTabOperations"></div><div id="pnTabMachines" style="display:none"></div><div id="pnTabCycles" style="display:none"></div><div id="pnTabDefects" style="display:none"></div>`;
+
+  content.innerHTML=`
+    <div class="section-title">
+      <div><h2>${escapeHtml(p.part_number)}</h2><p>Operational master profile</p></div>
+      <button id="closePnProfile" class="secondary" type="button">× Close</button>
+    </div>
+    <div class="profile-grid">
+      <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'—')}</span></div>
+      <div><strong>Cost per Piece</strong><span>${formatMoney(p.piece_cost)}</span></div>
+      <div><strong>Scrap Cost</strong><span>${formatMoney(p.scrap_cost)}</span></div>
+      <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
+    </div>
+    <div class="barcode-card">
+      <strong>Automatic Identification — Part Number Barcode</strong>
+      <div class="barcode barcode-container">${barcodeSvg(p.part_number)}</div>
+      <code>${escapeHtml(p.part_number)}</code>
+    </div>
+    <div class="tabs profile-tabs">
+      <button class="tab active" type="button" data-pntab="operations">Operations</button>
+      <button class="tab" type="button" data-pntab="machines">Machines</button>
+      <button class="tab" type="button" data-pntab="cycles">Cycle Times</button>
+      <button class="tab" type="button" data-pntab="defects">Defects</button>
+    </div>
+    <div id="pnTabOperations"></div>
+    <div id="pnTabMachines" style="display:none"></div>
+    <div id="pnTabCycles" style="display:none"></div>
+    <div id="pnTabDefects" style="display:none"></div>`;
+
   panel.style.display='block';
   document.getElementById('closePnProfile').onclick=()=>panel.style.display='none';
-  document.querySelectorAll('[data-pntab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-pntab]').forEach(x=>x.classList.remove('active'));b.classList.add('active');['operations','machines','cycles','defects'].forEach(k=>document.getElementById('pnTab'+k[0].toUpperCase()+k.slice(1)).style.display=k===b.dataset.pntab?'block':'none');});
-  await loadPnProfileOperations(id);await loadPnProfileMachines(id);await loadPnProfileCycles(id);await loadPnProfileDefects(id);
+  document.querySelectorAll('[data-pntab]').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('[data-pntab]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    ['operations','machines','cycles','defects'].forEach(k=>{
+      const target=document.getElementById('pnTab'+k[0].toUpperCase()+k.slice(1));
+      if(target)target.style.display=k===b.dataset.pntab?'block':'none';
+    });
+  });
+  await loadPnProfileOperations(id);
+  await loadPnProfileMachines(id);
+  await loadPnProfileCycles(id);
+  await loadPnProfileDefects(id);
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function loadPnProfileOperations(partId){
@@ -207,7 +234,7 @@ async function loadPnProfileMachines(partId){
  ]);
  const selected=new Set((links||[]).map(x=>x.machine_id));
  box.innerHTML=`<div class="panel section"><h3>Machines</h3><p>Relationships are managed here from the Part Number Profile. Machine Profiles are read-only for these links.</p><div class="machine-check-list">${(machines||[]).map(m=>`<label><input type="checkbox" class="pnpMachine" value="${m.id}" ${selected.has(m.id)?'checked':''}> <strong>${escapeHtml(m.code)}</strong> — ${escapeHtml(m.name||'')}</label>`).join('')||'No machines registered.'}</div><div class="actions"><button id="pnpSaveMachines" class="primary">Save Machine</button></div><div id="pnpMachineMsg" class="status"></div></div>`;
- document.getElementById('pnpSaveMachines').onclick=async()=>{const desired=[...document.querySelectorAll('.pnpMachine:checked')].map(x=>x.value);const current=[...selected];const remove=current.filter(x=>!desired.includes(x)),add=desired.filter(x=>!current.includes(x));let errors=[];if(remove.length){const r=await sb.from('part_number_machines').delete().eq('part_number_id',partId).in('machine_id',remove);if(r.error)errors.push(r.error.message);}if(add.length){const r=await sb.from('part_number_machines').insert(add.map(machine_id=>({company_id:activeCompanyId,part_number_id:partId,machine_id})));if(r.error)errors.push(r.error.message);}document.getElementById('pnpMachineMsg').textContent=errors.length?errors.join(' | '):'Machine links saved.';if(!errors.length)await loadPnProfileCycles(partId);};
+ document.getElementById('pnpSaveMachines').onclick=async()=>{const desired=[...document.querySelectorAll('.pnpMachine:checked')].map(x=>x.value);const current=[...selected];const remove=current.filter(x=>!desired.includes(x)),add=desired.filter(x=>!current.includes(x));let errors=[];if(remove.length){const r=await sb.from('part_number_machines').delete().eq('part_number_id',partId).in('machine_id',remove);if(r.error)errors.push(r.error.message);}if(add.length){const r=await sb.from('part_number_machines').insert(add.map(machine_id=>({part_number_id:partId,machine_id})));if(r.error)errors.push(r.error.message);}document.getElementById('pnpMachineMsg').textContent=errors.length?errors.join(' | '):'Machine links saved.';if(!errors.length)await loadPnProfileCycles(partId);};
 }
 async function loadPnProfileCycles(partId){
  const box=document.getElementById('pnTabCycles');if(!box)return;
@@ -377,7 +404,7 @@ async function loadMachines(){
   if(!machineCache.length){body.innerHTML='<tr><td colspan="5">No machines registered yet.</td></tr>';return;}
   body.innerHTML=machineCache.map(m=>{
     const links=Array.isArray(m.part_number_machines)?m.part_number_machines:[];
-    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button class="machine-code-button openMachine" data-id="${m.id}" title="Click to open Machine Profile">${escapeHtml(m.code)} <span class="code-view-hint">View</span></button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
+    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button type="button" class="profile-entry profile-entry-machine openMachine" data-id="${m.id}" title="Open Machine Profile"><span>${escapeHtml(m.code)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
   }).join('');
   document.querySelectorAll('.openMachine').forEach(b=>b.onclick=()=>openMachineProfile(b.dataset.id));
   document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));
