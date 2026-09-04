@@ -688,3 +688,159 @@ function bindAuth(){
  document.getElementById('logoutBtn').onclick=logout;
 }
 bindAuth(); bootstrapSession();
+
+
+/* ===== GUVEL Operational Phase 1.7.A =====
+   Capture Foundation & Personnel Module
+   Contract: company_id scoped personnel; capture reads master data only.
+*/
+const GUVEL_PHASE="1.7";
+let personnelCache=[];
+
+async function loadPersonnel(){
+  const {data,error}=await supabase.from('personnel')
+    .select('id,company_id,employee_id,first_name,last_name,role,is_active,created_at')
+    .eq('company_id',activeCompanyId).order('last_name').order('first_name');
+  if(error){console.error(error);alert(error.message);return [];}
+  personnelCache=data||[];
+  return personnelCache;
+}
+function personnelFullName(p){return [p.first_name,p.last_name].filter(Boolean).join(' ');}
+async function renderPersonnelPage(){
+  await loadPersonnel();
+  const main=document.getElementById('mainContent')||document.querySelector('main');
+  if(!main)return;
+  main.innerHTML=`
+    <section class="page-header"><div><h1>Personnel</h1><p>Operational personnel master data</p></div>
+    <button class="primary" id="addPersonnelBtn" type="button">Add Personnel</button></section>
+    <div id="personnelFormHost"></div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Employee ID</th><th>Name</th><th>Last Name</th><th>Role</th><th>Status</th><th>Actions</th>
+    </tr></thead><tbody>${personnelCache.map(p=>`<tr>
+      <td>${escapeHtml(p.employee_id)}</td><td>${escapeHtml(p.first_name)}</td>
+      <td>${escapeHtml(p.last_name)}</td><td>${escapeHtml(p.role)}</td>
+      <td>${p.is_active?'Active':'Inactive'}</td>
+      <td><button class="secondary editPersonnel" data-id="${p.id}">Edit</button>
+      <button class="secondary deletePersonnel" data-id="${p.id}">Delete</button></td>
+    </tr>`).join('')||'<tr><td colspan="6">No personnel registered.</td></tr>'}</tbody></table></div>`;
+  document.getElementById('addPersonnelBtn').onclick=()=>showPersonnelForm();
+  document.querySelectorAll('.editPersonnel').forEach(b=>b.onclick=()=>showPersonnelForm(personnelCache.find(x=>x.id===b.dataset.id)));
+  document.querySelectorAll('.deletePersonnel').forEach(b=>b.onclick=()=>deletePersonnel(b.dataset.id));
+}
+function showPersonnelForm(record=null){
+  const host=document.getElementById('personnelFormHost'); if(!host)return;
+  host.innerHTML=`<div class="panel phase17-form"><h3>${record?'Edit Personnel':'Add Personnel'}</h3>
+    <div class="form-grid">
+      <label>Employee ID<input id="p17_employee_id" value="${record?escapeHtml(record.employee_id):''}" required></label>
+      <label>Name<input id="p17_first_name" value="${record?escapeHtml(record.first_name):''}" required></label>
+      <label>Last Name<input id="p17_last_name" value="${record?escapeHtml(record.last_name):''}" required></label>
+      <label>Role<select id="p17_role"><option value="Operator" ${record?.role==='Operator'?'selected':''}>Operator</option><option value="Supervisor" ${record?.role==='Supervisor'?'selected':''}>Supervisor</option></select></label>
+    </div>
+    <div class="form-actions"><button class="primary" id="savePersonnelBtn">Save Personnel</button>
+    <button class="secondary" id="cancelPersonnelBtn">Cancel</button></div></div>`;
+  document.getElementById('cancelPersonnelBtn').onclick=()=>host.innerHTML='';
+  document.getElementById('savePersonnelBtn').onclick=async()=>{
+    const payload={company_id:activeCompanyId,
+      employee_id:document.getElementById('p17_employee_id').value.trim(),
+      first_name:document.getElementById('p17_first_name').value.trim(),
+      last_name:document.getElementById('p17_last_name').value.trim(),
+      role:document.getElementById('p17_role').value,is_active:true};
+    if(!payload.employee_id||!payload.first_name||!payload.last_name){alert('Employee ID, Name and Last Name are required.');return;}
+    let q=record?supabase.from('personnel').update(payload).eq('id',record.id):supabase.from('personnel').insert(payload);
+    const {error}=await q;if(error){alert(error.message);return;}await renderPersonnelPage();
+  };
+}
+async function deletePersonnel(id){
+  if(!confirm('Delete this personnel record?'))return;
+  const {error}=await supabase.from('personnel').delete().eq('id',id);
+  if(error){alert(error.message);return;}await renderPersonnelPage();
+}
+function personnelOptions(role, selected=''){
+  return personnelCache.filter(p=>p.is_active&&p.role===role)
+    .map(p=>`<option value="${p.id}" ${p.id===selected?'selected':''}>${escapeHtml(p.employee_id)} — ${escapeHtml(personnelFullName(p))}</option>`).join('');
+}
+
+/* Phase 1.7.A Capture foundation uses existing production_captures as the future source of truth.
+   No write is enabled until preflight confirms actual physical columns and RLS. */
+async function renderCaptureFoundation(){
+  await Promise.all([loadPersonnel()]);
+  const [customersRes,pnRes,machineRes,shiftRes,opsRes]=await Promise.all([
+    supabase.from('customers').select('id,name,code').eq('company_id',activeCompanyId).order('name'),
+    supabase.from('part_numbers').select('id,customer_id,part_number,description').eq('company_id',activeCompanyId).order('part_number'),
+    supabase.from('machines').select('id,code,name').eq('company_id',activeCompanyId).order('code'),
+    supabase.from('shifts').select('id,code,name,start_time,end_time').eq('company_id',activeCompanyId).order('code'),
+    supabase.from('operations').select('id,part_number_id,operation_number,operation_name').eq('company_id',activeCompanyId).order('operation_number')
+  ]);
+  const customers=customersRes.data||[], partNumbers=pnRes.data||[], machines=machineRes.data||[], shifts=shiftRes.data||[], operations=opsRes.data||[];
+  const main=document.getElementById('mainContent')||document.querySelector('main'); if(!main)return;
+  main.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production capture foundation — Phase 1.7.A</p></div></section>
+  <div class="panel"><h3>Production Information</h3><div class="form-grid">
+    <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
+    <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
+    <label>Customer<select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
+    <label>Part Number<select id="capPN"><option value="">Select Part Number</option></select></label>
+    <label>Lot Number<input id="capLot" type="text"></label>
+    <label>Machine<select id="capMachine"><option value="">Select Machine</option></select></label>
+    <label>Operation<select id="capOperation"><option value="">Select Operation</option></select></label>
+    <label>Production Quantity<input id="capQty" type="number" min="1" step="1"></label>
+    <label>Operator<select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></label>
+    <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
+  </div>
+  <label class="confirm-row"><input type="checkbox" id="capConfirm"> I confirm that the information is correct</label>
+  <div class="form-actions"><button class="primary" id="saveCaptureBtn" type="button">Save Production Capture</button></div></div>`;
+  const capCustomer=document.getElementById('capCustomer'),capPN=document.getElementById('capPN'),capMachine=document.getElementById('capMachine'),capOperation=document.getElementById('capOperation');
+  capCustomer.onchange=()=>{
+    const list=partNumbers.filter(p=>p.customer_id===capCustomer.value);
+    capPN.innerHTML='<option value="">Select Part Number</option>'+list.map(p=>`<option value="${p.id}">${escapeHtml(p.part_number)}${p.description?' — '+escapeHtml(p.description):''}</option>`).join('');
+    capMachine.innerHTML='<option value="">Select Machine</option>';capOperation.innerHTML='<option value="">Select Operation</option>';
+  };
+  capPN.onchange=async()=>{
+    const pnId=capPN.value;
+    const [relRes]=await Promise.all([supabase.from('part_number_machines').select('machine_id').eq('part_number_id',pnId)]);
+    const machineIds=new Set((relRes.data||[]).map(r=>r.machine_id));
+    capMachine.innerHTML='<option value="">Select Machine</option>'+machines.filter(m=>machineIds.has(m.id)).map(m=>`<option value="${m.id}">${escapeHtml(m.code)} — ${escapeHtml(m.name)}</option>`).join('');
+    capOperation.innerHTML='<option value="">Select Operation</option>'+operations.filter(o=>o.part_number_id===pnId).map(o=>`<option value="${o.id}">${escapeHtml(o.operation_number)}${o.operation_name?' — '+escapeHtml(o.operation_name):''}</option>`).join('');
+  };
+  document.getElementById('saveCaptureBtn').onclick=async()=>{
+    const val=id=>document.getElementById(id).value;
+    if(!document.getElementById('capConfirm').checked){alert('Please confirm that the information is correct.');return;}
+    const operator=personnelCache.find(p=>p.id===val('capOperator')), supervisor=personnelCache.find(p=>p.id===val('capSupervisor'));
+    const payload={
+      company_id:activeCompanyId,
+      production_date:val('capDate'),
+      shift_id:val('capShift')||null,
+      lot_number:val('capLot').trim(),
+      customer_id:val('capCustomer')||null,
+      part_number_id:val('capPN')||null,
+      machine_id:val('capMachine')||null,
+      operation_id:val('capOperation')||null,
+      operator_id:operator?.id||null,
+      supervisor_id:supervisor?.id||null,
+      operator_name:operator?`${personnelFullName(operator)} (${operator.employee_id})`:null,
+      supervisor_name:supervisor?`${personnelFullName(supervisor)} (${supervisor.employee_id})`:null,
+      production_quantity:Number(val('capQty')),
+      confirmed:true,
+      confirmed_at:new Date().toISOString()
+    };
+    const required=['shift_id','lot_number','customer_id','part_number_id','machine_id','operation_id','production_quantity'];
+    const missing=required.filter(k=>payload[k]===null||payload[k]===''||Number.isNaN(payload[k]));
+    if(missing.length){alert('Please complete all required production information.');return;}
+    const {error}=await supabase.from('production_captures').insert(payload);
+    if(error){console.error(error);alert(error.message);return;}
+    alert('Production capture saved successfully.');
+    await renderCaptureFoundation();
+  };
+}
+/* Route extension */
+const __phase17OriginalRoute = typeof routePage==='function' ? routePage : null;
+if(__phase17OriginalRoute){
+  window.routePage=async function(pageName){
+    if(pageName==='personnel') return renderPersonnelPage();
+    if(pageName==='capture') return renderCaptureFoundation();
+    return __phase17OriginalRoute(pageName);
+  };
+}
+document.addEventListener('click',(e)=>{
+  const a=e.target.closest('[data-page="personnel"],[href="#personnel"]');
+  if(a){e.preventDefault();renderPersonnelPage();}
+});

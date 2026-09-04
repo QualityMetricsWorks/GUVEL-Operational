@@ -196,3 +196,8 @@
 .profile-entry-machine{color:#b71d1d;background:rgba(255,49,49,.12);border-left:4px solid #ff3131}
 .profile-entry-machine small{background:#ff3131;color:#fff}
 .profile-entry:hover{filter:brightness(.96);transform:translateX(2px)}
+
+/* Phase 1.7 */
+.phase17-form{margin:0 0 18px}
+.phase17-notice{padding:14px 16px;border-left:4px solid #0cc0df;background:rgba(12,192,223,.08);margin-bottom:16px}
+.capture-search-note{font-size:.9rem;opacity:.8;margin-top:12px}
