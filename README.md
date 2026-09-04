@@ -30,3 +30,8 @@ The interface is a structural foundation. The database schema is the governing d
 
 ## Do not use
 Never place the Supabase `service_role` key in `config.js` or GitHub.
+
+## Phase 1.1 — Settings: Shifts
+This release adds functional CRUD for production shifts using the existing Foundation v1.0 schema. Run `sql/002_phase_1_1_settings_shifts.sql` in Supabase after Foundation v1.0. No existing foreign-key relationship is changed.
+
+Mandatory architecture reference: `RELATIONSHIP_MAP_v1.1.txt`.
