@@ -148,11 +148,28 @@ async function openPnProfile(id){
   const p=pnCache.find(x=>x.id===id);if(!p)return;
   window.pnProfileId=id;
   const panel=document.getElementById('pnProfilePanel'),content=document.getElementById('pnProfileContent');
-  const barcodeBars=(value)=>{
-    const normalized='*'+String(value).toUpperCase()+'*';
-    const widths=[];
-    for(const ch of normalized){let n=ch.charCodeAt(0);for(let bit=0;bit<8;bit++){widths.push(((n>>bit)&1)?3:1);}widths.push(1);}
-    return widths.map((w,i)=>i%2===0?`<i style="width:${w}px"></i>`:`<b style="width:${w}px"></b>`).join('');
+  const barcodeSvg=(raw)=>{
+    const value=String(raw||'').toUpperCase();
+    const alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%';
+    const patterns={
+      '0':'nnnwwnwnn','1':'wnnwnnnnw','2':'nnwwnnnnw','3':'wnwwnnnnn','4':'nnnwwnnnw','5':'wnnwwnnnn','6':'nnwwwnnnn','7':'nnnwnnwnw','8':'wnnwnnwnn','9':'nnwwnnwnn',
+      'A':'wnnnnwnnw','B':'nnwnnwnnw','C':'wnwnnwnnn','D':'nnnnwwnnw','E':'wnnnwwnnn','F':'nnwnwwnnn','G':'nnnnnwwnw','H':'wnnnnwwnn','I':'nnwnnwwnn','J':'nnnnwwwnn',
+      'K':'wnnnnnnww','L':'nnwnnnnww','M':'wnwnnnnwn','N':'nnnnwnnww','O':'wnnnwnnwn','P':'nnwnwnnwn','Q':'nnnnnnwww','R':'wnnnnnwwn','S':'nnwnnnwwn','T':'nnnnwnwwn',
+      'U':'wwnnnnnnw','V':'nwwnnnnnw','W':'wwwnnnnnn','X':'nwnnwnnnw','Y':'wwnnwnnnn','Z':'nwwnwnnnn','-':'nwnnnnwnw','.':'wwnnnnwnn',' ':'nwwnnnwnn','$':'nwnwnwnnn','/':'nwnwnnnwn','+':'nwnnnwnwn','%':'nnnwnwnwn','*':'nwnnwnwnn'
+    };
+    const safe=[...value].map(c=>alphabet.includes(c)?c:'-').join('');
+    const encoded='*'+safe+'*';
+    let x=10, bars='';
+    for(const ch of encoded){
+      const p=patterns[ch];
+      for(let i=0;i<p.length;i++){
+        const w=p[i]==='w'?3:1;
+        if(i%2===0) bars+=`<rect x="${x}" y="10" width="${w}" height="80" fill="#111"/>`;
+        x+=w;
+      }
+      x+=1;
+    }
+    return `<svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="${x+10}" height="115" viewBox="0 0 ${x+10} 115" role="img" aria-label="Code 39 ${safe}"><rect width="100%" height="100%" fill="white"/>${bars}<text x="${(x+10)/2}" y="108" text-anchor="middle" font-family="monospace" font-size="14" fill="#111">${safe}</text></svg>`;
   };
   content.innerHTML=`<div class="section-title"><div><h2>${escapeHtml(p.part_number)}</h2><p>Operational master profile</p></div><button id="closePnProfile" class="secondary">× Close</button></div>
   <div class="profile-grid">
