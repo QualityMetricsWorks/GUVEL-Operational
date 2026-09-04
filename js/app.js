@@ -421,8 +421,98 @@ function bindMachines(){
   loadMachinePartNumbers();loadMachines();
 }
 
-function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return table('Catalog',['Type','Code','Name / Defect','Category','Part Number','Operation']);case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
-function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();}
+
+function catalogPage(){
+ return head('Catalog','Manage Scrap Defects and Downtime master catalogs without changing operational capture records.')
+ +`<div class="notice">Architecture: Part Number → Operations → Defects. Downtime is a separate company-level catalog.</div>
+ <div class="tabs"><button class="tab active" data-catalog-tab="scrap">Scrap Catalog</button><button class="tab" data-catalog-tab="downtime">Downtime Catalog</button></div>
+ <div id="catalogScrap">
+ <div class="panel section"><div class="section-title"><div><h2 id="defectTitle">Add Scrap Defect</h2><p>Defects are linked to a Part Number and Operation.</p></div><button id="cancelDefect" class="secondary" style="display:none">Cancel Edit</button></div>
+ <form id="defectForm"><div class="form-grid">
+ <div class="field"><label>Part Number *</label><select id="defectPartNumber" required></select></div>
+ <div class="field"><label>Operation *</label><select id="defectOperation" required disabled><option value="">Select Part Number first</option></select></div>
+ <div class="field"><label>Defect Code *</label><input id="defectCode" required maxlength="80"></div>
+ <div class="field"><label>Defect *</label><input id="defectName" required maxlength="200"></div>
+ <div class="field"><label>Category *</label><select id="defectCategory" required><option value="">Select</option><option>Dimensional</option><option>Visual</option><option>Material</option><option>Process</option></select></div>
+ </div><div class="actions"><button class="primary" type="submit">Save Defect</button></div><div id="defectMessage" class="status"></div></form></div>
+ <div class="section-title"><div><h2>Scrap Catalog</h2><p>Part Number-specific defects by operation.</p></div><button id="reloadDefects" class="secondary">Refresh</button></div>
+ <div class="table-wrap"><table><thead><tr><th>Part Number</th><th>Operation</th><th>Code</th><th>Defect</th><th>Category</th><th>Actions</th></tr></thead><tbody id="defectsBody"><tr><td colspan="6">Loading...</td></tr></tbody></table></div></div>
+ <div id="catalogDowntime" style="display:none">
+ <div class="panel section"><div class="section-title"><div><h2 id="downtimeTitle">Add Downtime</h2><p>Company-level catalog used later by operational capture.</p></div><button id="cancelDowntime" class="secondary" style="display:none">Cancel Edit</button></div>
+ <form id="downtimeForm"><div class="form-grid">
+ <div class="field"><label>Code *</label><input id="downtimeCode" required maxlength="80"></div>
+ <div class="field"><label>Downtime *</label><input id="downtimeName" required maxlength="200"></div>
+ <div class="field"><label>Category *</label><select id="downtimeCategory" required><option value="">Select</option><option>Machine</option><option>Tooling</option><option>Quality</option><option>Setup</option><option>Personnel</option><option>Logistics</option><option>Material</option></select></div>
+ </div><div class="actions"><button class="primary" type="submit">Save Downtime</button></div><div id="downtimeMessage" class="status"></div></form></div>
+ <div class="section-title"><div><h2>Downtime Catalog</h2><p>Standardized downtime events for the active company.</p></div><button id="reloadDowntime" class="secondary">Refresh</button></div>
+ <div class="table-wrap"><table><thead><tr><th>Code</th><th>Downtime</th><th>Category</th><th>Actions</th></tr></thead><tbody id="downtimeBody"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></div>`;
+}
+let defectEdit=null,downtimeEdit=null,operationCache=[],defectCache=[],downtimeCache=[];
+function catMsg(id,text,type=''){const e=document.getElementById(id);if(e){e.textContent=text;e.className=`status ${type}`}}
+async function loadDefectPartNumbers(){
+ const s=document.getElementById('defectPartNumber');if(!s||!sb||!activeCompanyId)return;
+ const {data,error}=await sb.from('part_numbers').select('id,part_number,description').eq('company_id',activeCompanyId).order('part_number');
+ if(error){s.innerHTML='<option value="">Unable to load Part Numbers</option>';return}
+ s.innerHTML='<option value="">Select Part Number</option>'+(data||[]).map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}${x.description?' — '+escapeHtml(x.description):''}</option>`).join('');
+}
+async function loadOperations(partNumberId,selected=''){
+ const s=document.getElementById('defectOperation');if(!s)return;
+ s.disabled=true;s.innerHTML='<option value="">Loading operations...</option>';
+ if(!partNumberId){s.innerHTML='<option value="">Select Part Number first</option>';return}
+ const {data,error}=await sb.from('operations').select('id,operation_number,name').eq('part_number_id',partNumberId).order('operation_number');
+ if(error){s.innerHTML='<option value="">Unable to load operations</option>';return}
+ operationCache=data||[];s.disabled=false;
+ s.innerHTML='<option value="">Select Operation</option>'+operationCache.map(x=>`<option value="${x.id}" ${x.id===selected?'selected':''}>${escapeHtml(x.operation_number)}${x.name?' — '+escapeHtml(x.name):''}</option>`).join('');
+}
+async function loadDefects(){
+ const body=document.getElementById('defectsBody');if(!body||!sb||!activeCompanyId)return;
+ body.innerHTML='<tr><td colspan="6">Loading...</td></tr>';
+ const {data,error}=await sb.from('defects').select('id,code,name,category,operation_id,operations(id,operation_number,name,part_numbers(id,part_number))').eq('company_id',activeCompanyId).order('code');
+ if(error){body.innerHTML=`<tr><td colspan="6">Error: ${escapeHtml(error.message)}</td></tr>`;return}
+ defectCache=data||[];
+ body.innerHTML=defectCache.length?defectCache.map(d=>{const o=d.operations,p=o?.part_numbers;return `<tr><td>${escapeHtml(p?.part_number||'—')}</td><td>${escapeHtml(o?.operation_number||'—')}${o?.name?' — '+escapeHtml(o.name):''}</td><td>${escapeHtml(d.code)}</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.category)}</td><td><button class="secondary editDefect" data-id="${d.id}">Edit</button> <button class="danger deleteDefect" data-id="${d.id}">Delete</button></td></tr>`}).join(''):'<tr><td colspan="6">No defects registered yet.</td></tr>';
+ document.querySelectorAll('.editDefect').forEach(b=>b.onclick=()=>editDefect(defectCache.find(x=>x.id===b.dataset.id)));
+ document.querySelectorAll('.deleteDefect').forEach(b=>b.onclick=()=>deleteDefect(b.dataset.id));
+}
+async function editDefect(d){
+ defectEdit=d.id;const o=d.operations,p=o?.part_numbers;
+ await loadDefectPartNumbers();document.getElementById('defectPartNumber').value=p?.id||'';
+ await loadOperations(p?.id||'',d.operation_id);
+ document.getElementById('defectCode').value=d.code;document.getElementById('defectName').value=d.name;document.getElementById('defectCategory').value=d.category;
+ document.getElementById('defectTitle').textContent='Edit Scrap Defect';document.getElementById('cancelDefect').style.display='inline-block';
+}
+async function resetDefect(){defectEdit=null;document.getElementById('defectForm').reset();document.getElementById('defectTitle').textContent='Add Scrap Defect';document.getElementById('cancelDefect').style.display='none';await loadDefectPartNumbers();await loadOperations('');catMsg('defectMessage','')}
+async function saveDefect(e){
+ e.preventDefault();const operation_id=document.getElementById('defectOperation').value,code=document.getElementById('defectCode').value.trim(),name=document.getElementById('defectName').value.trim(),category=document.getElementById('defectCategory').value;
+ if(!operation_id||!code||!name||!category)return catMsg('defectMessage','Complete all required fields.','error');
+ const payload={company_id:activeCompanyId,operation_id,code,name,category};
+ const q=defectEdit?sb.from('defects').update({operation_id,code,name,category}).eq('id',defectEdit).eq('company_id',activeCompanyId):sb.from('defects').insert(payload);
+ const {error}=await q;if(error)return catMsg('defectMessage',error.code==='23505'?'This Defect Code already exists for the active company.':error.message,'error');
+ await resetDefect();catMsg('defectMessage','Defect saved successfully.','success');loadDefects();
+}
+async function deleteDefect(id){if(!confirm('Delete this defect?'))return;const {error}=await sb.from('defects').delete().eq('id',id).eq('company_id',activeCompanyId);if(error)return alert(error.message);loadDefects();}
+async function loadDowntime(){
+ const body=document.getElementById('downtimeBody');if(!body||!sb||!activeCompanyId)return;
+ const {data,error}=await sb.from('downtime_catalog').select('id,code,name,category').eq('company_id',activeCompanyId).order('code');
+ if(error){body.innerHTML=`<tr><td colspan="4">Error: ${escapeHtml(error.message)}</td></tr>`;return}
+ downtimeCache=data||[];body.innerHTML=downtimeCache.length?downtimeCache.map(d=>`<tr><td>${escapeHtml(d.code)}</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.category)}</td><td><button class="secondary editDowntime" data-id="${d.id}">Edit</button> <button class="danger deleteDowntime" data-id="${d.id}">Delete</button></td></tr>`).join(''):'<tr><td colspan="4">No downtime events registered yet.</td></tr>';
+ document.querySelectorAll('.editDowntime').forEach(b=>b.onclick=()=>editDowntime(downtimeCache.find(x=>x.id===b.dataset.id)));
+ document.querySelectorAll('.deleteDowntime').forEach(b=>b.onclick=()=>deleteDowntime(b.dataset.id));
+}
+function editDowntime(d){downtimeEdit=d.id;document.getElementById('downtimeCode').value=d.code;document.getElementById('downtimeName').value=d.name;document.getElementById('downtimeCategory').value=d.category;document.getElementById('downtimeTitle').textContent='Edit Downtime';document.getElementById('cancelDowntime').style.display='inline-block';}
+function resetDowntime(){downtimeEdit=null;document.getElementById('downtimeForm').reset();document.getElementById('downtimeTitle').textContent='Add Downtime';document.getElementById('cancelDowntime').style.display='none';catMsg('downtimeMessage','')}
+async function saveDowntime(e){e.preventDefault();const code=document.getElementById('downtimeCode').value.trim(),name=document.getElementById('downtimeName').value.trim(),category=document.getElementById('downtimeCategory').value;if(!code||!name||!category)return catMsg('downtimeMessage','Complete all required fields.','error');const payload={company_id:activeCompanyId,code,name,category};const q=downtimeEdit?sb.from('downtime_catalog').update({code,name,category}).eq('id',downtimeEdit).eq('company_id',activeCompanyId):sb.from('downtime_catalog').insert(payload);const {error}=await q;if(error)return catMsg('downtimeMessage',error.code==='23505'?'This Downtime Code already exists for the active company.':error.message,'error');resetDowntime();catMsg('downtimeMessage','Downtime saved successfully.','success');loadDowntime();}
+async function deleteDowntime(id){if(!confirm('Delete this downtime event?'))return;const {error}=await sb.from('downtime_catalog').delete().eq('id',id).eq('company_id',activeCompanyId);if(error)return alert(error.message);loadDowntime();}
+function bindCatalog(){
+ document.querySelectorAll('[data-catalog-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-catalog-tab]').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById('catalogScrap').style.display=b.dataset.catalogTab==='scrap'?'block':'none';document.getElementById('catalogDowntime').style.display=b.dataset.catalogTab==='downtime'?'block':'none';});
+ document.getElementById('defectPartNumber').onchange=e=>loadOperations(e.target.value);
+ document.getElementById('defectForm').onsubmit=saveDefect;document.getElementById('cancelDefect').onclick=resetDefect;document.getElementById('reloadDefects').onclick=loadDefects;
+ document.getElementById('downtimeForm').onsubmit=saveDowntime;document.getElementById('cancelDowntime').onclick=resetDowntime;document.getElementById('reloadDowntime').onclick=loadDowntime;
+ loadDefectPartNumbers();loadDefects();loadDowntime();
+}
+
+function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
+function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();if(current==='Machines')bindMachines();if(current==='Catalog')bindCatalog();}
 document.getElementById('refreshBtn').onclick=()=>render();
 
 let activeCompanyId=null;

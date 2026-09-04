@@ -96,3 +96,22 @@ Changes are frontend-only:
 - compact searchable Part Number dropdown;
 - highlighted Machine Code profile action;
 - close X for Machine Profile.
+
+
+## Formal Closure — v1.5.1
+
+Status: **CLOSED / ACCEPTED**
+
+This ZIP is the formal Architecture Lock baseline after successful
+user acceptance of the Machines module and its UI refinement.
+
+Next development must start from this baseline.
+
+## Phase 1.6 — Catalog
+
+Run `sql/010_phase_1_6_catalog.sql` in Supabase before deploying.
+This phase adds Operations, Defects and Downtime Catalog.
+
+Important: the SQL stops with an explicit error if the expected
+`company_memberships` security table is missing; do not bypass that
+error. Verify the existing SECURITY_MAP first.
