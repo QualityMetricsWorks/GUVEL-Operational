@@ -96,3 +96,8 @@
 
 /* Phase 1.6.1 Part Number Operational Profile */
 .barcode-card{margin:18px 0;padding:18px;border:1px solid var(--line);background:#fff}.barcode{height:74px;display:flex;align-items:stretch;gap:1px;margin:12px 0;overflow:hidden}.barcode i{background:#111;display:block;height:100%}.barcode-card code{font-size:16px;letter-spacing:2px}.machine-check-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0}.machine-check-list label{padding:10px;border:1px solid var(--line);background:#fff;cursor:pointer}.profile-tabs{margin-top:24px}
+
+/* v1.6.2 barcode */
+.barcode{background:#fff;padding:8px;gap:0}
+.barcode i{background:#111;display:block;height:100%}
+.barcode b{display:block;height:100%;background:#fff}
