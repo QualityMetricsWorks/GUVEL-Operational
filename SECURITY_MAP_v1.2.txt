@@ -1,0 +1,43 @@
+GUVEL OPERATIONAL — SECURITY MAP
+VERSION: 1.2
+
+AUTHENTICATION PROVIDER
+Supabase Auth
+
+CURRENT ACCESS FLOW
+authenticated user
+  -> auth.uid()
+  -> company_members.user_id
+  -> company_members.company_id
+  -> company-scoped RLS access
+
+RLS STATUS
+profiles: enabled
+company_members: enabled
+companies: enabled
+customers: enabled
+part_numbers: enabled
+machines: enabled
+operations: enabled
+part_number_machines: enabled
+shifts: enabled
+scrap_catalog: enabled
+downtime_catalog: enabled
+production_captures: enabled
+scrap_events: enabled
+downtime_events: enabled
+
+TEMPORARY PHASE 1.1 ANON POLICIES
+Removed by migration 003.
+
+COMPANY SECURITY RULE
+A record with company_id is readable/writable only when the authenticated user has an active company_members record for the same company_id.
+
+OWNER RULE
+The creator of a newly onboarded company is automatically linked as role=owner by a database trigger.
+
+CURRENT ROLES STORED
+owner, admin, manager, operator, viewer
+
+ROLE ENFORCEMENT
+Foundation only. Roles are stored now for future expansion; detailed per-action permissions are not yet implemented.

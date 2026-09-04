@@ -1,0 +1,30 @@
+GUVEL OPERATIONAL — VERSION HISTORY
+
+v1.0 — FOUNDATION
+- Initial multi-company architecture.
+- GitHub Pages + Supabase foundation.
+- Core operational schema and register views.
+
+v1.1 — SETTINGS: SHIFTS
+- Functional Shifts CRUD.
+- Excluded planned time uses Option A: total minutes.
+- Added Relationship Map discipline.
+- Temporary anonymous development access was used before authentication.
+
+v1.2 — AUTHENTICATION & COMPANY FOUNDATION
+- Added Supabase Auth frontend flow.
+- Added sign in, sign up, logout and session persistence.
+- Added profiles table.
+- Added company_members table.
+- Added authenticated company context.
+- Removed frontend dependency on ACTIVE_COMPANY_ID.
+- Added company onboarding for newly created companies.
+- Preserved existing GUVEL Demo Company through adoption migration.
+- Replaced temporary anonymous Shift policies with authenticated RLS.
+- Added SECURITY_MAP_v1.2.txt.
+
+MIGRATION ORDER
+001_guvel_operational_foundation.sql
+002_phase_1_1_settings_shifts.sql
+003_phase_1_2_auth_company_foundation.sql
+004_adopt_existing_demo_company_TEMPLATE.sql (only for an existing manually-created company)

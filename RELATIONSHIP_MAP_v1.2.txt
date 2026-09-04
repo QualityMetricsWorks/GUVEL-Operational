@@ -1,0 +1,87 @@
+GUVEL OPERATIONAL — RELATIONSHIP MAP
+VERSION: 1.2
+STATUS: AUTHORITATIVE DEVELOPMENT MAP
+
+CORE ROOT
+companies.id
+  -> customers.company_id
+  -> part_numbers.company_id
+  -> machines.company_id
+  -> operations.company_id
+  -> shifts.company_id
+  -> scrap_catalog.company_id
+  -> downtime_catalog.company_id
+  -> production_captures.company_id
+  -> scrap_events.company_id
+  -> downtime_events.company_id
+
+AUTHENTICATION
+Supabase auth.users.id
+  -> profiles.id (1:1)
+  -> company_members.user_id (1:many)
+
+COMPANY ACCESS
+companies.id
+  -> company_members.company_id (1:many)
+
+CUSTOMER
+customers.id
+  -> part_numbers.customer_id
+  -> production_captures.customer_id
+
+PART NUMBER
+part_numbers.id
+  -> operations.part_number_id
+  -> part_number_machines.part_number_id
+  -> scrap_catalog.part_number_id
+  -> production_captures.part_number_id
+
+MACHINE
+machines.id
+  -> part_number_machines.machine_id
+  -> production_captures.machine_id
+
+OPERATION
+operations.id
+  -> scrap_catalog.operation_id
+  -> production_captures.operation_id
+
+SHIFT
+shifts.id
+  -> production_captures.shift_id
+
+CAPTURE TRANSACTION
+production_captures.id
+  -> scrap_events.production_capture_id
+  -> downtime_events.production_capture_id
+
+CATALOG LINKS
+scrap_catalog.id -> scrap_events.scrap_catalog_id
+downtime_catalog.id -> downtime_events.downtime_catalog_id
+
+RELATIONSHIP PRESERVATION RULE
+1. Never rename, remove or repurpose an existing foreign key without dependency review.
+2. Before adding a relationship, check this map and the current schema.
+3. Prefer additive migrations: CREATE TABLE / ADD COLUMN / ADD CONSTRAINT.
+4. Every new relationship must be documented here and in version history.
+5. company_id remains the multi-company ownership boundary.
+6. customer_id remains the customer ownership link for part numbers and captures.
+7. Authentication changes access determination only; it does not replace company_id.
+
+VERSION HISTORY
+v1.0 Foundation
+- Created multi-company root architecture.
+- Established company_id across operational master and transaction data.
+
+v1.1 Settings: Shifts
+- Preserved shifts.company_id.
+- Added functional CRUD.
+- Added unique company/code performance index.
+
+v1.2 Authentication & Company Foundation
+- Added auth.users.id -> profiles.id.
+- Added auth.users.id -> company_members.user_id.
+- Added companies.id -> company_members.company_id.
+- Preserved every existing company_id relationship.
+- ACTIVE_COMPANY_ID frontend configuration is removed from the operational flow.
+- Active company is now resolved through authenticated company membership.

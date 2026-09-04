@@ -1,37 +1,27 @@
-# GUVEL Operational — Foundation v1.0
+# GUVEL Operational — Phase 1.2: Authentication & Company Foundation
 
-## Stack for this phase
-- GitHub repository
-- GitHub Pages
-- Supabase
-- Vanilla HTML / CSS / JavaScript
-- No Node.js, npm, Vite or local compilation required
+This release is built directly on Phase 1.1.
 
-## Upload order
-1. Create a new GitHub repository named `guvel-operational`.
-2. Upload the contents of this folder to the repository root.
-3. In Supabase, create a new project for GUVEL Operational.
-4. Open SQL Editor and run `sql/001_guvel_operational_foundation.sql` once in a clean project.
-5. Copy the project URL and anon key into `js/config.js`.
-6. In GitHub: Settings > Pages > Deploy from branch > main > /(root).
-7. Open the Pages URL.
+## Important migration order
+1. Keep the existing Foundation and Phase 1.1 files in GitHub.
+2. Run `sql/003_phase_1_2_auth_company_foundation.sql` in Supabase.
+3. Replace/update the frontend files from this ZIP in GitHub.
+4. Create your login account in the published portal.
+5. Because `GUVEL Demo Company` already existed before authentication, run `sql/004_adopt_existing_demo_company_TEMPLATE.sql` after replacing `YOUR_LOGIN_EMAIL` with your exact login email.
+6. Sign in again. The existing company should load through `company_members`.
 
-## Important architecture rules
-- `company_id` is the tenant boundary from day one.
-- Customers, part numbers, machines, shifts and catalogs are master data.
-- A production capture is the transactional source of truth.
-- One capture can have multiple scrap events and multiple downtime events.
-- Registers are views of transactional data, not duplicated tables.
-- Planned and unplanned downtime are stored explicitly.
-- Authentication and RLS are deferred, but the schema is prepared for future company isolation.
+## Important Supabase setting
+For initial testing, you may need to review Supabase Auth email confirmation settings. If email confirmation is enabled, confirm the account before signing in.
 
-## Current Foundation scope
-The interface is a structural foundation. The database schema is the governing data model for the next development stages. CRUD logic and live dashboard calculations should be added only against this schema.
+## What changed
+- `ACTIVE_COMPANY_ID` is no longer used.
+- The active company comes from authenticated membership.
+- Existing `company_id` links remain unchanged.
+- Temporary anonymous Shift policies are removed by migration 003.
 
-## Do not use
-Never place the Supabase `service_role` key in `config.js` or GitHub.
+## Architecture records
+- `RELATIONSHIP_MAP_v1.2.txt`
+- `SECURITY_MAP_v1.2.txt`
+- `VERSION_HISTORY.txt`
 
-## Phase 1.1 — Settings: Shifts
-This release adds functional CRUD for production shifts using the existing Foundation v1.0 schema. Run `sql/002_phase_1_1_settings_shifts.sql` in Supabase after Foundation v1.0. No existing foreign-key relationship is changed.
-
-Mandatory architecture reference: `RELATIONSHIP_MAP_v1.1.txt`.
+These files must remain in future releases and be updated before any relationship or security change is introduced.
