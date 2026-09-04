@@ -88,7 +88,7 @@ Before testing, make sure at least one Part Number exists.
 Phase 1.5 remains open until `USER_ACCEPTANCE_TEST_v1.5.txt` passes.
 
 
-## v1.5.1 — Machines UI Refinement
+## v1.6 — Machines UI Refinement
 
 No SQL execution is required for this version.
 
@@ -98,7 +98,7 @@ Changes are frontend-only:
 - close X for Machine Profile.
 
 
-## Formal Closure — v1.5.1
+## Formal Closure — v1.6
 
 Status: **CLOSED / ACCEPTED**
 
@@ -106,12 +106,3 @@ This ZIP is the formal Architecture Lock baseline after successful
 user acceptance of the Machines module and its UI refinement.
 
 Next development must start from this baseline.
-
-## Phase 1.6 — Catalog
-
-Run `sql/010_phase_1_6_catalog.sql` in Supabase before deploying.
-This phase adds Operations, Defects and Downtime Catalog.
-
-Important: the SQL stops with an explicit error if the expected
-`company_memberships` security table is missing; do not bypass that
-error. Verify the existing SECURITY_MAP first.
