@@ -104,8 +104,115 @@ function bindCustomers(){
   loadCustomers();
 }
 
+
+function partNumbersPage(){
+  return head('Part Numbers','Create and maintain company-scoped part numbers. Customer linkage is required.')
+  +`<div class="panel section"><div class="section-title"><div><h2 id="pnFormTitle">Add Part Number</h2><p id="pnFormDesc">Required relationship: part_numbers.customer_id → customers.id.</p></div><button id="cancelPnEdit" class="secondary" style="display:none">Cancel Edit</button></div>
+  <form id="pnForm"><div class="form-grid">
+    <div class="field"><label>Customer *</label><select id="pnCustomer" required><option value="">Loading customers...</option></select></div>
+    <div class="field"><label>Part Number *</label><input id="pnNumber" required maxlength="120" placeholder="Part Number"></div>
+    <div class="field"><label>Description</label><input id="pnDescription" maxlength="500" placeholder="Description"></div>
+    <div class="field"><label>Cost per Piece</label><input id="pnCostPiece" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+    <div class="field"><label>Scrap Cost</label><input id="pnScrapCost" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+  </div><div class="actions"><button class="primary" type="submit" id="pnSubmit">Save Part Number</button></div><div id="pnMessage" class="status"></div></form></div>
+  <div class="section-title"><div><h2>Registered Part Numbers</h2><p>Each record remains scoped to the active company and linked to one customer.</p></div><button id="reloadPn" class="secondary">Refresh</button></div>
+  <div class="table-wrap"><table><thead><tr><th>Part Number</th><th>Customer</th><th>Description</th><th>Cost / Piece</th><th>Scrap Cost</th><th>Actions</th></tr></thead><tbody id="pnBody"><tr><td colspan="6">Loading part numbers...</td></tr></tbody></table></div>
+  <div class="panel section" id="pnProfilePanel" style="display:none"><div class="section-title"><div><h2>Part Number Profile</h2><p>Foundation for future Operations, Machines, Cycle Time and Defects.</p></div></div><div id="pnProfileContent"></div></div>`;
+}
+let editingPnId=null, pnCache=[], customerCache=[];
+function pnMsg(text,type=''){const el=document.getElementById('pnMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
+async function loadPnCustomers(selected=''){
+  const select=document.getElementById('pnCustomer'); if(!select)return;
+  const {data,error}=await sb.from('customers').select('id,code,name').eq('company_id',activeCompanyId).order('code');
+  if(error){select.innerHTML='<option value="">Unable to load customers</option>';return;}
+  customerCache=data||[];
+  select.innerHTML='<option value="">Select Customer</option>'+customerCache.map(c=>`<option value="${c.id}">${escapeHtml(c.code)} — ${escapeHtml(c.name)}</option>`).join('');
+  if(selected)select.value=selected;
+}
+async function loadPartNumbers(){
+  const body=document.getElementById('pnBody');if(!body)return;
+  if(!sb||!activeCompanyId){body.innerHTML='<tr><td colspan="6">Supabase configuration or active company is missing.</td></tr>';return;}
+  body.innerHTML='<tr><td colspan="6">Loading part numbers...</td></tr>';
+  const {data,error}=await sb.from('part_numbers').select('id,company_id,customer_id,part_number,description,cost_per_piece,scrap_cost,customers(id,code,name)').eq('company_id',activeCompanyId).order('part_number');
+  if(error){body.innerHTML=`<tr><td colspan="6">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
+  pnCache=data||[];
+  if(!pnCache.length){body.innerHTML='<tr><td colspan="6">No part numbers registered yet.</td></tr>';return;}
+  body.innerHTML=pnCache.map(p=>`<tr><td><button class="link-button openPn" data-id="${p.id}">${escapeHtml(p.part_number)}</button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.cost_per_piece)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
+  document.querySelectorAll('.openPn').forEach(b=>b.onclick=()=>openPnProfile(b.dataset.id));
+  document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));
+  document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
+}
+function formatMoney(v){if(v===null||v===undefined||v==='')return '—';return Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
+function openPnProfile(id){
+  const p=pnCache.find(x=>x.id===id);if(!p)return;
+  const panel=document.getElementById('pnProfilePanel'), content=document.getElementById('pnProfileContent');
+  content.innerHTML=`<div class="profile-grid">
+    <div><strong>Part Number</strong><span>${escapeHtml(p.part_number)}</span></div>
+    <div><strong>Customer</strong><span>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</span></div>
+    <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
+    <div><strong>Cost per Piece</strong><span>${formatMoney(p.cost_per_piece)}</span></div>
+    <div><strong>Scrap Cost</strong><span>${formatMoney(p.scrap_cost)}</span></div>
+    <div><strong>Company Scope</strong><span>Active company only</span></div>
+  </div>
+  <div class="profile-next"><strong>Reserved next links:</strong> Operations → Machines → Cycle Time → Defects. No new relationship is created in this phase.</div>`;
+  panel.style.display='block';panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function startPnEdit(p){
+  editingPnId=p.id;
+  document.getElementById('pnNumber').value=p.part_number||'';
+  document.getElementById('pnDescription').value=p.description||'';
+  document.getElementById('pnCostPiece').value=p.cost_per_piece??'';
+  document.getElementById('pnScrapCost').value=p.scrap_cost??'';
+  loadPnCustomers(p.customer_id);
+  document.getElementById('pnFormTitle').textContent='Edit Part Number';
+  document.getElementById('pnFormDesc').textContent='Existing company_id and customer_id relationships are preserved.';
+  document.getElementById('pnSubmit').textContent='Update Part Number';
+  document.getElementById('cancelPnEdit').style.display='inline-block';pnMsg('');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function cancelPnEdit(){
+  editingPnId=null;document.getElementById('pnForm').reset();
+  document.getElementById('pnFormTitle').textContent='Add Part Number';
+  document.getElementById('pnFormDesc').textContent='Required relationship: part_numbers.customer_id → customers.id.';
+  document.getElementById('pnSubmit').textContent='Save Part Number';
+  document.getElementById('cancelPnEdit').style.display='none';pnMsg('');
+  loadPnCustomers();
+}
+function numOrNull(id){const v=document.getElementById(id).value.trim();return v===''?null:Number(v);}
+async function savePn(e){
+  e.preventDefault();
+  const customer_id=document.getElementById('pnCustomer').value;
+  const part_number=document.getElementById('pnNumber').value.trim();
+  const description=document.getElementById('pnDescription').value.trim()||null;
+  const cost_per_piece=numOrNull('pnCostPiece'),scrap_cost=numOrNull('pnScrapCost');
+  if(!customer_id||!part_number)return pnMsg('Customer and Part Number are required.','error');
+  if((cost_per_piece!==null&&cost_per_piece<0)||(scrap_cost!==null&&scrap_cost<0))return pnMsg('Costs cannot be negative.','error');
+  pnMsg(editingPnId?'Updating part number...':'Saving part number...');
+  const payload={customer_id,part_number,description,cost_per_piece,scrap_cost};
+  let result;
+  if(editingPnId)result=await sb.from('part_numbers').update(payload).eq('id',editingPnId).eq('company_id',activeCompanyId);
+  else result=await sb.from('part_numbers').insert({...payload,company_id:activeCompanyId});
+  if(result.error){
+    const msg=result.error.code==='23505'?'This Part Number already exists for the active company.':result.error.message;
+    return pnMsg(msg,'error');
+  }
+  const wasEditing=!!editingPnId;cancelPnEdit();pnMsg(wasEditing?'Part Number updated successfully.':'Part Number saved successfully.','success');await loadPartNumbers();
+}
+async function deletePn(id){
+  if(!confirm('Delete this Part Number? Future linked operational data may prevent deletion.'))return;
+  const {error}=await sb.from('part_numbers').delete().eq('id',id).eq('company_id',activeCompanyId);
+  if(error){const msg=error.code==='23503'?'This Part Number cannot be deleted because linked records exist.':error.message;alert(msg);return;}
+  if(editingPnId===id)cancelPnEdit();await loadPartNumbers();
+}
+function bindPartNumbers(){
+  document.getElementById('pnForm').onsubmit=savePn;
+  document.getElementById('cancelPnEdit').onclick=cancelPnEdit;
+  document.getElementById('reloadPn').onclick=loadPartNumbers;
+  loadPnCustomers();loadPartNumbers();
+}
+
 function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return capture();case'Customers':return customersPage();case'Part Numbers':return table('Part Numbers',['Customer','Part Number','Description','Piece Cost','Scrap Cost']);case'Machines':return table('Machines',['Brand','Code','Name','Linked Part Numbers']);case'Catalog':return table('Catalog',['Type','Code','Name / Defect','Category','Part Number','Operation']);case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Settings':return shiftsPage();}}
-function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();}
+function render(){view.innerHTML=page();if(current==='Dashboard'){dashTab('General');document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');dashTab(b.dataset.tab);});}if(current==='Settings')bindShifts();if(current==='Customers')bindCustomers();if(current==='Part Numbers')bindPartNumbers();}
 document.getElementById('refreshBtn').onclick=()=>render();
 
 let activeCompanyId=null;

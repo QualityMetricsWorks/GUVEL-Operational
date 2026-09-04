@@ -1,0 +1,32 @@
+============================================================
+GUVEL OPERATIONAL — SECURITY MAP
+VERSION: 1.4
+============================================================
+
+AUTHENTICATION
+Supabase Auth -> authenticated session.
+
+COMPANY CONTEXT
+auth.uid()
+  -> company_members.user_id
+  -> company_members.company_id
+  -> active company context
+
+PART NUMBERS
+Table: public.part_numbers
+Tenant boundary: company_id
+Commercial relationship: customer_id
+
+Expected authenticated access:
+SELECT / INSERT / UPDATE / DELETE only when the authenticated user
+is an active member of the record's company.
+
+The frontend always filters reads and writes by active company context.
+RLS remains the authoritative security boundary.
+
+CONFIGURATION
+config.js contains only:
+- Supabase project URL
+- Supabase publishable/anon key
+
+Service-role credentials must never be committed to GitHub.

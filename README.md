@@ -43,3 +43,16 @@ Run the SQL migrations in this order if not already completed:
 ## Important correction
 
 Phase 1.3 contains a UUID-scoped migration that corrects the previously inverted `name` and `code` values for the already-existing GUVEL Demo Company. It does not change `companies.id`, so existing `company_id` relationships remain valid.
+
+
+# Phase 1.4 — Part Numbers
+
+Run `sql/006_phase_1_4_part_numbers.sql` after all previous migrations.
+
+This phase reuses the existing data model:
+- `part_numbers.company_id -> companies.id`
+- `part_numbers.customer_id -> customers.id`
+
+It intentionally adds no new relationship between Company, Customer and Part Number.
+
+The included `js/config.js` contains the current project URL and publishable key for this development project.

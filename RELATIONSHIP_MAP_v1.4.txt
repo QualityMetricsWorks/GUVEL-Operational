@@ -1,0 +1,65 @@
+============================================================
+GUVEL OPERATIONAL — RELATIONSHIP MAP
+VERSION: 1.4
+STATUS: ACTIVE SOURCE OF TRUTH
+============================================================
+
+MULTI-COMPANY ROOT
+companies.id
+  -> customers.company_id
+  -> part_numbers.company_id
+  -> machines.company_id
+  -> shifts.company_id
+  -> operations.company_id
+  -> company_members.company_id
+  -> operational data company_id fields
+
+AUTHENTICATION
+auth.users.id
+  -> profiles.id
+  -> company_members.user_id
+
+COMPANY MEMBERSHIP
+company_members.company_id -> companies.id
+company_members.user_id -> auth.users.id
+
+CUSTOMERS
+customers.company_id -> companies.id
+customers.id
+  -> part_numbers.customer_id
+  -> future production/customer references
+
+PART NUMBERS — PHASE 1.4
+part_numbers.company_id -> companies.id
+part_numbers.customer_id -> customers.id
+part_numbers.id
+  -> operations.part_number_id
+  -> part_number_machines.part_number_id
+  -> scrap_catalog.part_number_id
+  -> future cycle-time configuration
+
+DATA OWNERSHIP PATH
+Company
+  -> Customer
+    -> Part Number
+      -> Operations
+      -> Machine assignments
+      -> Cycle-time configuration
+      -> Defects
+
+IMPORTANT INTEGRITY RULE
+A Part Number always stores BOTH:
+- company_id: tenant boundary / security scope
+- customer_id: commercial ownership relationship
+
+The frontend must never infer company_id from customer_id.
+Both relationships are explicit and preserved.
+
+VERSION CHANGES
+v1.0 Foundation
+v1.1 Settings / Shifts
+v1.2 Authentication & Company Foundation
+v1.3 Customers + correction of known demo company name/code data
+v1.4 Functional Part Numbers + Part Number Profile
+
+NO relationship was renamed or removed in v1.4.

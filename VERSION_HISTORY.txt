@@ -59,3 +59,39 @@ CORRECTION
 
 NEXT ARCHITECTURAL DEPENDENCY
 - Part Numbers must reuse customer_id from customers.id.
+
+
+============================================================
+v1.4 — PHASE 1.4: PART NUMBERS
+============================================================
+Date: 2026-09-03
+
+ADDED
+- Functional Part Numbers CRUD.
+- Required Customer selection.
+- Description.
+- Cost per Piece.
+- Scrap Cost.
+- Part Number Profile.
+- Linked Customer display.
+- Company-scoped queries.
+- Support indexes.
+- RELATIONSHIP_MAP_v1.4.
+- SECURITY_MAP_v1.4.
+
+REUSED / PRESERVED
+- part_numbers.company_id -> companies.id.
+- part_numbers.customer_id -> customers.id.
+- customers.company_id -> companies.id.
+- Existing companies.id values.
+- Existing customers.id values.
+
+CONFIGURATION
+- config.js is included with the current Supabase URL and publishable key provided by the project owner.
+
+NEXT DEPENDENCY
+Part Number will be used by:
+1. Operations
+2. Machine assignments
+3. Cycle-time configuration
+4. Scrap/Defect catalog
