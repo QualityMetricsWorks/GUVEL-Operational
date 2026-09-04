@@ -25,3 +25,21 @@ For initial testing, you may need to review Supabase Auth email confirmation set
 - `VERSION_HISTORY.txt`
 
 These files must remain in future releases and be updated before any relationship or security change is introduced.
+
+
+# Phase 1.3 — Customers
+
+This release adds functional Customers CRUD on top of Phase 1.2.
+
+Run the SQL migrations in this order if not already completed:
+
+1. `001_guvel_operational_foundation.sql`
+2. `002_phase_1_1_settings_shifts.sql`
+3. `003_phase_1_2_auth_company_foundation.sql`
+4. `005_phase_1_3_customers.sql`
+
+`004_adopt_existing_demo_company_TEMPLATE.sql` remains a historical/template helper for adopting a pre-existing company.
+
+## Important correction
+
+Phase 1.3 contains a UUID-scoped migration that corrects the previously inverted `name` and `code` values for the already-existing GUVEL Demo Company. It does not change `companies.id`, so existing `company_id` relationships remain valid.

@@ -28,3 +28,34 @@ MIGRATION ORDER
 002_phase_1_1_settings_shifts.sql
 003_phase_1_2_auth_company_foundation.sql
 004_adopt_existing_demo_company_TEMPLATE.sql (only for an existing manually-created company)
+
+
+============================================================
+v1.3 — PHASE 1.3: CUSTOMERS
+============================================================
+Date: 2026-09-03
+
+ADDED
+- Functional Customers CRUD.
+- Customer Code.
+- Customer Name.
+- Company-scoped customer loading.
+- Linked Part Number count placeholder using existing relationship.
+- Non-destructive customer index.
+- RELATIONSHIP_MAP_v1.3.txt.
+- SECURITY_MAP_v1.3.txt.
+
+PRESERVED
+- customers.company_id -> companies.id.
+- part_numbers.customer_id -> customers.id.
+- All existing company_id relationships.
+- Existing companies.id values.
+
+CORRECTION
+- The known GUVEL Demo Company had NAME and CODE values inverted.
+- Corrected by a UUID-scoped migration.
+- The company UUID remains unchanged.
+- No related company_id values need to change.
+
+NEXT ARCHITECTURAL DEPENDENCY
+- Part Numbers must reuse customer_id from customers.id.

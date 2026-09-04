@@ -1,0 +1,103 @@
+============================================================
+GUVEL OPERATIONAL — RELATIONSHIP MAP
+VERSION: 1.3
+STATUS: ACTIVE SOURCE OF TRUTH
+============================================================
+
+ROOT MULTI-COMPANY ENTITY
+-------------------------
+companies
+  companies.id
+    -> customers.company_id
+    -> part_numbers.company_id
+    -> machines.company_id
+    -> operations.company_id
+    -> shifts.company_id
+    -> scrap_catalog.company_id
+    -> downtime_catalog.company_id
+    -> production_captures.company_id
+    -> scrap_events.company_id
+    -> downtime_events.company_id
+    -> company_members.company_id
+
+AUTHENTICATION
+--------------
+auth.users.id
+  -> profiles.id (1:1)
+  -> company_members.user_id
+
+COMPANY MEMBERSHIP
+------------------
+company_members
+  company_id -> companies.id
+  user_id    -> auth.users.id
+
+CUSTOMERS — PHASE 1.3
+---------------------
+customers
+  id
+  company_id -> companies.id
+  code
+  name
+
+UNIQUE RULE:
+  unique(company_id, code)
+
+FUTURE DEPENDENCIES PRESERVED:
+  customers.id -> part_numbers.customer_id
+  customers.id -> production_captures.customer_id
+
+PART NUMBERS (EXISTING FOUNDATION)
+----------------------------------
+part_numbers
+  company_id -> companies.id
+  customer_id -> customers.id
+
+machines
+  company_id -> companies.id
+
+part_number_machines
+  part_number_id -> part_numbers.id
+  machine_id -> machines.id
+
+operations
+  company_id -> companies.id
+  part_number_id -> part_numbers.id
+
+scrap_catalog
+  company_id -> companies.id
+  part_number_id -> part_numbers.id
+  operation_id -> operations.id
+
+CHANGE HISTORY
+--------------
+v1.0
+- Established companies as root multi-company entity.
+- Created customers and customer_id relationships.
+
+v1.1
+- Added operational use of shifts.
+- Preserved shifts.company_id.
+
+v1.2
+- Added Supabase Auth, profiles and company_members.
+- Company context now comes from authenticated membership.
+
+v1.3
+- Activated functional Customers CRUD.
+- Reused existing customers table.
+- Preserved customers.company_id -> companies.id.
+- Preserved customers.id -> part_numbers.customer_id.
+- Added non-destructive support index.
+- Corrected known demo company NAME/CODE values by UUID.
+- companies.id was NOT changed.
+
+EVOLUTION RULE
+--------------
+Before adding or changing a relationship:
+1. Review this map.
+2. Reuse an existing relationship when it fits.
+3. Add a new relationship only when required.
+4. Do not rename/remove foreign keys without a documented migration.
+5. Preserve IDs whenever possible.
+6. Update Relationship Map and Version History in every release.
