@@ -155,7 +155,14 @@ function openPnProfile(id){
     <div><strong>Company Scope</strong><span>Active company only</span></div>
   </div>
   <div class="profile-next"><strong>Reserved next links:</strong> Operations → Machines → Cycle Time → Defects. No new relationship is created in this phase.</div>`;
-  panel.style.display='block';panel.scrollIntoView({behavior:'smooth',block:'start'});
+  panel.style.display='block';
+  const close=document.getElementById('closeMachineProfile');
+  if(close)close.onclick=closeMachineProfile;
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeMachineProfile(){
+  const panel=document.getElementById('machineProfilePanel');
+  if(panel)panel.style.display='none';
 }
 function startPnEdit(p){
   editingPnId=p.id;
@@ -222,13 +229,13 @@ function machinesPage(){
       <div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div>
       <div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div>
     </div>
-    <div class="section"><h2>Linked Part Numbers</h2><p id="machineLinkHint" class="muted">Select the Part Numbers that can run on this machine.</p><div id="machinePartNumberLinks" class="link-list">Loading Part Numbers...</div></div>
+    <div class="section"><h2>Linked Part Numbers</h2><p id="machineLinkHint" class="muted">Search and select the Part Numbers that can run on this machine.</p><div id="machinePartNumberLinks" class="machine-multiselect">Loading Part Numbers...</div></div>
     <div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div>
     </form>
   </div>
   <div class="section-title"><div><h2>Registered Machines</h2><p>Machine master data is company-scoped. Linked Part Numbers are counted from part_number_machines.</p></div><button id="reloadMachines" class="secondary">Refresh</button></div>
   <div class="table-wrap"><table><thead><tr><th>Brand</th><th>Code</th><th>Name</th><th>Linked Part Numbers</th><th>Actions</th></tr></thead><tbody id="machinesBody"><tr><td colspan="5">Loading machines...</td></tr></tbody></table></div>
-  <div class="panel section" id="machineProfilePanel" style="display:none"><div class="section-title"><div><h2>Machine Profile</h2><p>Machine master data and linked Part Numbers.</p></div></div><div id="machineProfileContent"></div></div>`;
+  <div class="panel section" id="machineProfilePanel" style="display:none"><div class="section-title"><div><h2>Machine Profile</h2><p>Machine master data and linked Part Numbers.</p></div><button id="closeMachineProfile" class="profile-close" type="button" aria-label="Close Machine Profile" title="Close">×</button></div><div id="machineProfileContent"></div></div>`;
 }
 let editingMachineId=null, machineCache=[], machinePnCache=[];
 function machineMsg(text,type=''){const el=document.getElementById('machineMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
@@ -242,8 +249,57 @@ async function loadMachinePartNumbers(selectedIds=[]){
   machinePnCache=data||[];
   if(!machinePnCache.length){box.innerHTML='<div class="empty-links">No Part Numbers registered yet. Create Part Numbers first; you can link them later.</div>';return;}
   const selected=new Set(selectedIds);
-  box.innerHTML=machinePnCache.map(p=>`<label class="link-check"><input type="checkbox" name="machinePn" value="${p.id}" ${selected.has(p.id)?'checked':''}><span><strong>${escapeHtml(p.part_number)}</strong><small>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')} ${p.description?`· ${escapeHtml(p.description)}`:''}</small></span></label>`).join('');
+  const selectedCount=selected.size;
+  box.innerHTML=`<div class="multi-select-shell">
+    <button type="button" class="multi-select-toggle" id="machinePnToggle" aria-expanded="false">
+      <span id="machinePnToggleText">${selectedCount?selectedCount+' Part Number(s) selected':'Select Part Numbers'}</span>
+      <span class="multi-select-arrow">⌄</span>
+    </button>
+    <div class="multi-select-menu" id="machinePnMenu" hidden>
+      <input id="machinePnSearch" class="multi-select-search" type="search" placeholder="Search Part Number, Customer or Description">
+      <div id="machinePnOptions" class="multi-select-options">
+      ${machinePnCache.map(p=>`<label class="link-check" data-search="${escAttr(`${p.part_number} ${p.description||''} ${p.customers?`${p.customers.code} ${p.customers.name}`:''}`.toLowerCase())}"><input type="checkbox" name="machinePn" value="${p.id}" ${selected.has(p.id)?'checked':''}><span><strong>${escapeHtml(p.part_number)}</strong><small>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')} ${p.description?`· ${escapeHtml(p.description)}`:''}</small></span></label>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  bindMachinePnMultiSelect();
 }
+
+function updateMachinePnToggleText(){
+  const text=document.getElementById('machinePnToggleText');
+  if(!text)return;
+  const count=document.querySelectorAll('input[name="machinePn"]:checked').length;
+  text.textContent=count?`${count} Part Number(s) selected`:'Select Part Numbers';
+}
+function bindMachinePnMultiSelect(){
+  const toggle=document.getElementById('machinePnToggle');
+  const menu=document.getElementById('machinePnMenu');
+  const search=document.getElementById('machinePnSearch');
+  if(!toggle||!menu)return;
+  toggle.onclick=()=>{
+    const opening=menu.hidden;
+    menu.hidden=!opening;
+    toggle.setAttribute('aria-expanded',String(opening));
+    if(opening&&search)search.focus();
+  };
+  document.querySelectorAll('input[name="machinePn"]').forEach(cb=>cb.onchange=updateMachinePnToggleText);
+  if(search){
+    search.oninput=()=>{
+      const q=search.value.trim().toLowerCase();
+      document.querySelectorAll('#machinePnOptions .link-check').forEach(row=>{
+        row.style.display=!q||row.dataset.search.includes(q)?'flex':'none';
+      });
+    };
+  }
+  document.addEventListener('click',function closeMachinePnMenu(e){
+    const shell=document.querySelector('.multi-select-shell');
+    if(shell&&!shell.contains(e.target)&&!menu.hidden){
+      menu.hidden=true;
+      toggle.setAttribute('aria-expanded','false');
+    }
+  },{once:true});
+}
+
 function selectedMachinePnIds(){return Array.from(document.querySelectorAll('input[name="machinePn"]:checked')).map(x=>x.value);}
 async function loadMachines(){
   const body=document.getElementById('machinesBody');if(!body)return;
@@ -255,7 +311,7 @@ async function loadMachines(){
   if(!machineCache.length){body.innerHTML='<tr><td colspan="5">No machines registered yet.</td></tr>';return;}
   body.innerHTML=machineCache.map(m=>{
     const links=Array.isArray(m.part_number_machines)?m.part_number_machines:[];
-    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button class="link-button openMachine" data-id="${m.id}">${escapeHtml(m.code)}</button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
+    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button class="machine-code-button openMachine" data-id="${m.id}" title="Click to open Machine Profile">${escapeHtml(m.code)} <span class="code-view-hint">View</span></button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
   }).join('');
   document.querySelectorAll('.openMachine').forEach(b=>b.onclick=()=>openMachineProfile(b.dataset.id));
   document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));
@@ -273,7 +329,14 @@ function openMachineProfile(id){
   </div>
   <div class="profile-next"><strong>Linked Part Numbers (${links.length})</strong>${links.length?`<ul class="profile-list">${links.map(p=>`<li><strong>${escapeHtml(p.part_number)}</strong>${p.description?` — ${escapeHtml(p.description)}`:''}</li>`).join('')}</ul>`:'<p>No Part Numbers linked yet.</p>'}
   <div class="profile-next"><strong>Relationship:</strong> part_numbers ↔ part_number_machines ↔ machines. Operations and cycle times remain unchanged and are reserved for later phases.</div>`;
-  panel.style.display='block';panel.scrollIntoView({behavior:'smooth',block:'start'});
+  panel.style.display='block';
+  const close=document.getElementById('closeMachineProfile');
+  if(close)close.onclick=closeMachineProfile;
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeMachineProfile(){
+  const panel=document.getElementById('machineProfilePanel');
+  if(panel)panel.style.display='none';
 }
 async function startMachineEdit(m){
   editingMachineId=m.id;
