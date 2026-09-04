@@ -186,3 +186,13 @@
 .profile-entry:hover{filter:brightness(.96);transform:translateX(2px)}
 .barcode-container{overflow-x:auto;background:#fff;padding:12px}
 .barcode-svg{display:block;max-width:100%;height:auto;background:#fff}
+
+/* v1.6.2 Hotfix 4 — guaranteed visible profile entry points */
+.profile-entry{display:inline-flex;align-items:center;gap:9px;border:0;padding:6px 10px;cursor:pointer;font:inherit;font-weight:900;border-radius:4px}
+.profile-entry span{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.profile-entry small{font-size:10px;font-weight:900;letter-spacing:.08em;padding:4px 7px;border-radius:3px}
+.profile-entry-pn{color:#0a8298;background:rgba(12,192,223,.16);border-left:4px solid #0cc0df}
+.profile-entry-pn small{background:#0cc0df;color:#fff}
+.profile-entry-machine{color:#b71d1d;background:rgba(255,49,49,.12);border-left:4px solid #ff3131}
+.profile-entry-machine small{background:#ff3131;color:#fff}
+.profile-entry:hover{filter:brightness(.96);transform:translateX(2px)}

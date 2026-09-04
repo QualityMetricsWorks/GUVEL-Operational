@@ -138,7 +138,9 @@ async function loadPartNumbers(){
   pnCache=data||[];
   if(!pnCache.length){body.innerHTML='<tr><td colspan="6">No part numbers registered yet.</td></tr>';return;}
   body.innerHTML=pnCache.map(p=>`<tr><td><button type="button" class="profile-entry profile-entry-pn openPn" data-id="${p.id}" title="Open Part Number Profile"><span>${escapeHtml(p.part_number)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.piece_cost)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
-  document.querySelectorAll('.openPn').forEach(b=>b.onclick=()=>openPnProfile(b.dataset.id));
+  document.querySelectorAll('.openPn').forEach(b=>{
+    b.onclick=(event)=>{ event.preventDefault(); event.stopPropagation(); openPnProfile(b.dataset.id); };
+  });
   document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));
   document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
 }
@@ -406,7 +408,9 @@ async function loadMachines(){
     const links=Array.isArray(m.part_number_machines)?m.part_number_machines:[];
     return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button type="button" class="profile-entry profile-entry-machine openMachine" data-id="${m.id}" title="Open Machine Profile"><span>${escapeHtml(m.code)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
   }).join('');
-  document.querySelectorAll('.openMachine').forEach(b=>b.onclick=()=>openMachineProfile(b.dataset.id));
+  document.querySelectorAll('.openMachine').forEach(b=>{
+    b.onclick=(event)=>{ event.preventDefault(); event.stopPropagation(); openMachineProfile(b.dataset.id); };
+  });
   document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));
   document.querySelectorAll('.deleteMachine').forEach(b=>b.onclick=()=>deleteMachine(b.dataset.id));
 }
@@ -619,7 +623,7 @@ document.addEventListener('click', async (event)=>{
     event.preventDefault();
     event.stopPropagation();
     const id=pnButton.dataset.pnProfile;
-    if(typeof openPartNumberProfile==='function') await openPartNumberProfile(id);
+    if(typeof openPartNumberProfile==='function') await openPnProfile(id);
     return;
   }
   const machineButton=event.target.closest('[data-machine-profile]');
