@@ -231,3 +231,36 @@
 .register-table-wrap{max-width:100%;}
 .register-table-wrap table{min-width:1200px}
 @media(max-width:720px){.register-table-wrap table{min-width:1050px}.register-summary{grid-template-columns:1fr}}
+
+/* Phase 1.9.B — General Dashboard */
+.dashboard-filter-panel{margin-bottom:18px}
+.dashboard-filter-panel .section-title h2{font-size:16px}
+.dashboard-filter-panel .section-title .actions{display:flex}
+.dashboard-kpis .card{min-height:128px}
+.dashboard-secondary-kpis{margin-top:14px}
+.dashboard-secondary-kpis .card{min-height:105px}
+.dashboard-data-note{margin-bottom:16px}
+.dashboard-empty,.dashboard-coming{padding:28px}
+.dashboard-empty h2,.dashboard-coming h2{margin:6px 0}
+.dashboard-phase-badge{display:inline-block;margin-top:8px;padding:5px 8px;border:1px solid var(--line);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.dashboard-trend{display:flex;flex-direction:column;gap:12px}
+.trend-row{display:grid;grid-template-columns:100px 1fr;gap:14px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.trend-row:last-child{border-bottom:0}
+.trend-label{font-size:12px;font-weight:800;color:var(--muted);padding-top:3px}
+.trend-bars{display:flex;flex-direction:column;gap:7px}
+.trend-line{display:grid;grid-template-columns:78px 1fr 70px;gap:9px;align-items:center;font-size:12px}
+.trend-name{color:var(--muted);font-weight:700}
+.bar-track{height:9px;background:#edf1f3;overflow:hidden}
+.bar{height:100%;min-width:0}
+.bar.production{background:#0cc0df}
+.bar.scrap{background:#ff3131}
+.dashboard-summary-panels{margin-top:0}
+.dashboard-summary-panels .panel{margin-bottom:0}
+@media(max-width:720px){
+  .dashboard-filter-panel .section-title{align-items:stretch}
+  .dashboard-filter-panel .section-title .actions{width:100%}
+  .dashboard-filter-panel .section-title .actions button{flex:1}
+  .trend-row{grid-template-columns:1fr}
+  .trend-line{grid-template-columns:70px 1fr 58px}
+  .dashboard-summary-panels{grid-template-columns:1fr}
+}

@@ -85,3 +85,19 @@ Status: READY FOR USER ACCEPTANCE
 - Local Register state updates immediately after confirmed deletion.
 - No database schema or RLS changes.
 - Release pending user acceptance.
+
+## Phase 1.9.B — General Dashboard
+
+Phase 1.9.B implements the General Dashboard analytical surface using the approved Phase 1.9.A KPI contract.
+
+Implemented:
+- Global filters: Date From, Date To, Customer, Part Number, Shift, Machine.
+- OEE, Production, Scrap, PPMs, Yield and Direct Scrap Cost / COPQ Proxy.
+- Supporting Availability, Performance and Downtime indicators.
+- Production/Scrap trend.
+- Data-quality handling for OEE prerequisites.
+
+No SQL/schema/RLS change is required.
+Production, Quality and Performance detailed dashboard views remain deferred to later Phase 1.9 subphases.
+
+Status: READY FOR USER ACCEPTANCE
