@@ -77,3 +77,11 @@ Filters:
 No SQL migration, schema change, or RLS change is required.
 
 Status: READY FOR USER ACCEPTANCE
+
+
+## Phase 1.8 Hotfix 2 — Register Deletion Stability
+- Stabilized consecutive Register deletions with persistent event delegation.
+- DELETE is verified by returned row id.
+- Local Register state updates immediately after confirmed deletion.
+- No database schema or RLS changes.
+- Release pending user acceptance.

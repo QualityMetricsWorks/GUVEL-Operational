@@ -1083,32 +1083,72 @@ async function loadRegisters(){
   }catch(e){console.error('GUVEL register load error',e);registerSetMessage(e.message||'Unable to load registers.','error');const body=document.querySelector('#registerTable tbody');if(body)body.innerHTML=`<tr><td class="empty">${escapeHtml(e.message||'Unable to load registers.')}</td></tr>`;}
 }
 
+let registerDeleteBusy=false;
+
 async function deleteRegisterRecord(table,id,kind){
   const messages={
     capture:'Delete this Capture completely? This will also delete all Scrap and Downtime events linked to it.',
     scrap:'Delete this Scrap event? It will be permanently removed from the Capture and future indicators.',
     downtime:'Delete this Downtime event? It will be permanently removed from the Capture and future indicators.'
   };
+  if(registerDeleteBusy)return;
+  if(!id||!activeCompanyId){registerSetMessage('Unable to identify the record or active company.','error');return;}
   if(!window.confirm(messages[kind]))return;
+  registerDeleteBusy=true;
+  const buttons=document.querySelectorAll('#registerTable .register-delete');
+  buttons.forEach(b=>{b.disabled=true;b.dataset.originalText=b.textContent;b.textContent='Deleting…';});
   registerSetMessage(`Deleting ${kind}...`);
   try{
-    const {error}=await sb.from(table).delete().eq('id',id).eq('company_id',activeCompanyId);
+    const {data,error}=await sb.from(table)
+      .delete()
+      .eq('id',id)
+      .eq('company_id',activeCompanyId)
+      .select('id');
     if(error)throw error;
+    if(!data||data.length===0){
+      throw new Error('No record was deleted. The record may already be deleted or the current user is not authorized to delete it.');
+    }
+
+    if(kind==='capture'){
+      registerState.production=registerState.production.filter(r=>r.id!==id);
+      registerState.scrap=registerState.scrap.filter(r=>r.production_capture_id!==id);
+      registerState.downtime=registerState.downtime.filter(r=>r.production_capture_id!==id);
+    }else if(kind==='scrap'){
+      registerState.scrap=registerState.scrap.filter(r=>r.id!==id);
+    }else{
+      registerState.downtime=registerState.downtime.filter(r=>r.id!==id);
+    }
+
+    renderRegisterTable();
     registerSetMessage(`${kind==='capture'?'Capture':kind==='scrap'?'Scrap':'Downtime'} deleted successfully.`,'success');
-    await loadRegisters();
-  }catch(e){console.error('GUVEL register delete error',e);registerSetMessage(e.message||`Unable to delete ${kind}.`,'error');}
+  }catch(e){
+    console.error('GUVEL register delete error',e);
+    registerSetMessage(e.message||`Unable to delete ${kind}.`,'error');
+    renderRegisterTable();
+  }finally{
+    registerDeleteBusy=false;
+    bindRegisterDeleteActions();
+  }
 }
 
 function bindRegisterDeleteActions(){
-  document.querySelectorAll('[data-delete-capture]').forEach(b=>b.onclick=()=>deleteRegisterRecord('production_captures',b.dataset.deleteCapture,'capture'));
-  document.querySelectorAll('[data-delete-scrap]').forEach(b=>b.onclick=()=>deleteRegisterRecord('scrap_events',b.dataset.deleteScrap,'scrap'));
-  document.querySelectorAll('[data-delete-downtime]').forEach(b=>b.onclick=()=>deleteRegisterRecord('downtime_events',b.dataset.deleteDowntime,'downtime'));
+  const table=document.getElementById('registerTable');
+  if(!table||table.dataset.deleteDelegationBound==='true')return;
+  table.dataset.deleteDelegationBound='true';
+  table.addEventListener('click',event=>{
+    const b=event.target.closest('.register-delete');
+    if(!b||!table.contains(b))return;
+    event.preventDefault();
+    if(b.dataset.deleteCapture)deleteRegisterRecord('production_captures',b.dataset.deleteCapture,'capture');
+    else if(b.dataset.deleteScrap)deleteRegisterRecord('scrap_events',b.dataset.deleteScrap,'scrap');
+    else if(b.dataset.deleteDowntime)deleteRegisterRecord('downtime_events',b.dataset.deleteDowntime,'downtime');
+  });
 }
 
 function bindRegisters(){
   populateRegisterFilters();
   document.querySelectorAll('[data-register-tab]').forEach(b=>b.onclick=()=>{registerState.tab=b.dataset.registerTab;document.querySelectorAll('[data-register-tab]').forEach(x=>x.classList.toggle('active',x===b));renderRegisterTable();});
-  ['regDateFrom','regDateTo','regShift','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'&&el.type==='search'?'input':'change',()=>{renderRegisterTable();bindRegisterDeleteActions();});});
+  ['regDateFrom','regDateTo','regShift','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'&&el.type==='search'?'input':'change',()=>{renderRegisterTable();});});
   const regCustomer=document.getElementById('regCustomer'),regPart=document.getElementById('regPart');
   if(regCustomer)regCustomer.onchange=()=>{
     const currentPart=regPart?.value||'';
@@ -1118,10 +1158,10 @@ function bindRegisters(){
       regPart.innerHTML='<option value="">All Part Numbers</option>'+available.map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}</option>`).join('');
       if(available.some(x=>x.id===currentPart))regPart.value=currentPart;
     }
-    renderRegisterTable();bindRegisterDeleteActions();
+    renderRegisterTable();
   };
-  if(regPart)regPart.onchange=()=>{renderRegisterTable();bindRegisterDeleteActions();};
-  document.getElementById('regClear').onclick=()=>{['regDateFrom','regDateTo','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['regCustomer','regPart','regShift'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderRegisterTable();bindRegisterDeleteActions();};
+  if(regPart)regPart.onchange=()=>{renderRegisterTable();};
+  document.getElementById('regClear').onclick=()=>{['regDateFrom','regDateTo','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['regCustomer','regPart','regShift'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderRegisterTable();};
   document.getElementById('registerRefresh').onclick=loadRegisters;
   loadRegisters();
 }
