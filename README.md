@@ -59,3 +59,21 @@ The package preserves the Architecture Lock records from previous phases and add
 - USER_ACCEPTANCE_TEST_v1.8.txt
 
 Dashboard remains intentionally deferred until the final stage.
+
+## Phase 1.8 Hotfix 1 — Deletion + Filter Correction
+
+Hotfix 1 extends Registers with controlled source deletion and fixes Customer / Part Number filter population.
+
+Deletion behavior:
+- Production: Delete Capture removes the complete Capture transaction; existing FK cascades remove linked Scrap and Downtime.
+- Scrap: Delete Scrap removes only the selected Scrap event.
+- Downtime: Delete Downtime removes only the selected Downtime event.
+
+Filters:
+- Customer options load after master data is available.
+- Part Number options load after master data is available.
+- Selecting Customer narrows Part Number choices.
+
+No SQL migration, schema change, or RLS change is required.
+
+Status: READY FOR USER ACCEPTANCE

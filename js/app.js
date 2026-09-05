@@ -978,7 +978,7 @@ function registersPage(){
       <button class="tab ${registerState.tab==='Downtime'?'active':''}" data-register-tab="Downtime">Downtime</button>
     </div>
     <div class="panel register-filter-panel">
-      <div class="section-title"><div><h2>Filters</h2><p>Filters apply to the selected register only.</p></div><button id="registerRefresh" class="secondary" type="button">Refresh</button></div>
+      <div class="section-title"><div><h2>Filters</h2><p>Filters apply to the selected register only. Deletions remove the source transaction/event and therefore update future indicators.</p></div><button id="registerRefresh" class="secondary" type="button">Refresh</button></div>
       <div class="form-grid register-filters">
         <div class="field"><label>Date From</label><input id="regDateFrom" type="date"></div>
         <div class="field"><label>Date To</label><input id="regDateTo" type="date"></div>
@@ -1046,16 +1046,16 @@ function renderRegisterTable(){
   const tab=registerState.tab,rows=filteredRegisterRows(tab),thead=document.querySelector('#registerTable thead'),tbody=document.querySelector('#registerTable tbody'),summary=document.getElementById('registerSummary');
   if(!thead||!tbody)return;
   if(tab==='Production'){
-    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Operator</th><th>Supervisor</th><th>Production Qty</th><th>Confirmed</th></tr>';
-    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.captured_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.operator_name||'—')}</td><td>${escapeHtml(r.supervisor_name||'—')}</td><td>${Number(r.production_quantity||0).toLocaleString()}</td><td>${r.confirmed?'Yes':'No'}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No Production records match the selected filters.</td></tr>';
+    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Operator</th><th>Supervisor</th><th>Production Qty</th><th>Confirmed</th><th>Action</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.captured_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.operator_name||'—')}</td><td>${escapeHtml(r.supervisor_name||'—')}</td><td>${Number(r.production_quantity||0).toLocaleString()}</td><td>${r.confirmed?'Yes':'No'}</td><td><button class="danger register-delete" type="button" data-delete-capture="${r.id}">Delete Capture</button></td></tr>`).join(''):'<tr><td colspan="12" class="empty">No Production records match the selected filters.</td></tr>';
     const total=rows.reduce((n,r)=>n+Number(r.production_quantity||0),0);summary.innerHTML=`<div class="card"><div class="label">Production Records</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Production Quantity</div><div class="metric">${total.toLocaleString()}</div></div>`;
   } else if(tab==='Scrap'){
-    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Defect Code</th><th>Defect</th><th>Category</th><th>Scrap Qty</th><th>Scrap Cost</th><th>Reason</th></tr>';
-    tbody.innerHTML=rows.length?rows.map(r=>{const cost=Number(r.scrap_cost||0)*Number(r.quantity||0);return `<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.defect?.code||'—')}</td><td>${escapeHtml(r.defect?.defect||'—')}</td><td>${escapeHtml(r.defect?.category||'—')}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${registerMoney(cost)}</td><td>${escapeHtml(r.reason||'—')}</td></tr>`}).join(''):'<tr><td colspan="13" class="empty">No Scrap records match the selected filters.</td></tr>';
+    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Defect Code</th><th>Defect</th><th>Category</th><th>Scrap Qty</th><th>Scrap Cost</th><th>Reason</th><th>Action</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>{const cost=Number(r.scrap_cost||0)*Number(r.quantity||0);return `<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.defect?.code||'—')}</td><td>${escapeHtml(r.defect?.defect||'—')}</td><td>${escapeHtml(r.defect?.category||'—')}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${registerMoney(cost)}</td><td>${escapeHtml(r.reason||'—')}</td><td><button class="danger register-delete" type="button" data-delete-scrap="${r.id}">Delete Scrap</button></td></tr>`}).join(''):'<tr><td colspan="14" class="empty">No Scrap records match the selected filters.</td></tr>';
     const total=rows.reduce((n,r)=>n+Number(r.quantity||0),0),cost=rows.reduce((n,r)=>n+Number(r.quantity||0)*Number(r.scrap_cost||0),0);summary.innerHTML=`<div class="card"><div class="label">Scrap Events</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Scrap Quantity</div><div class="metric">${total.toLocaleString()}</div></div><div class="card"><div class="label">Scrap Cost</div><div class="metric">${registerMoney(cost)}</div></div>`;
   } else {
-    thead.innerHTML='<tr><th>Date / Time</th><th>Customer</th><th>Part Number</th><th>Machine</th><th>Downtime Code</th><th>Downtime</th><th>Category</th><th>Type</th><th>Minutes</th><th>Reason</th></tr>';
-    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.downtime?.code||'—')}</td><td>${escapeHtml(r.downtime?.downtime||'—')}</td><td>${escapeHtml(r.downtime?.category||'—')}</td><td>${escapeHtml(r.event_type||'—')}</td><td>${Number(r.minutes||0).toLocaleString(undefined,{maximumFractionDigits:2})}</td><td>${escapeHtml(r.reason||'—')}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No Downtime records match the selected filters.</td></tr>';
+    thead.innerHTML='<tr><th>Date / Time</th><th>Customer</th><th>Part Number</th><th>Machine</th><th>Downtime Code</th><th>Downtime</th><th>Category</th><th>Type</th><th>Minutes</th><th>Reason</th><th>Action</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.downtime?.code||'—')}</td><td>${escapeHtml(r.downtime?.downtime||'—')}</td><td>${escapeHtml(r.downtime?.category||'—')}</td><td>${escapeHtml(r.event_type||'—')}</td><td>${Number(r.minutes||0).toLocaleString(undefined,{maximumFractionDigits:2})}</td><td>${escapeHtml(r.reason||'—')}</td><td><button class="danger register-delete" type="button" data-delete-downtime="${r.id}">Delete Downtime</button></td></tr>`).join(''):'<tr><td colspan="11" class="empty">No Downtime records match the selected filters.</td></tr>';
     const total=rows.reduce((n,r)=>n+Number(r.minutes||0),0);summary.innerHTML=`<div class="card"><div class="label">Downtime Events</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Downtime Minutes</div><div class="metric">${total.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>`;
   }
 }
@@ -1078,14 +1078,50 @@ async function loadRegisters(){
     registerState.downtime=(down.data||[]).map(r=>{const p=r.production_captures||{};return {...r,captured_at:p.captured_at,production_date:p.production_date,shift_id:p.shift_id,customer_id:p.customer_id,part_number_id:p.part_number_id,machine_id:p.machine_id,machine:p.machines||p.machine,downtime:r.downtime_catalog||r.downtimeCatalog};});
     registerSetMessage(`Loaded ${registerState.production.length.toLocaleString()} Production, ${registerState.scrap.length.toLocaleString()} Scrap and ${registerState.downtime.length.toLocaleString()} Downtime records.`);
     renderRegisterTable();
+    populateRegisterFilters();
+    bindRegisterDeleteActions();
   }catch(e){console.error('GUVEL register load error',e);registerSetMessage(e.message||'Unable to load registers.','error');const body=document.querySelector('#registerTable tbody');if(body)body.innerHTML=`<tr><td class="empty">${escapeHtml(e.message||'Unable to load registers.')}</td></tr>`;}
+}
+
+async function deleteRegisterRecord(table,id,kind){
+  const messages={
+    capture:'Delete this Capture completely? This will also delete all Scrap and Downtime events linked to it.',
+    scrap:'Delete this Scrap event? It will be permanently removed from the Capture and future indicators.',
+    downtime:'Delete this Downtime event? It will be permanently removed from the Capture and future indicators.'
+  };
+  if(!window.confirm(messages[kind]))return;
+  registerSetMessage(`Deleting ${kind}...`);
+  try{
+    const {error}=await sb.from(table).delete().eq('id',id).eq('company_id',activeCompanyId);
+    if(error)throw error;
+    registerSetMessage(`${kind==='capture'?'Capture':kind==='scrap'?'Scrap':'Downtime'} deleted successfully.`,'success');
+    await loadRegisters();
+  }catch(e){console.error('GUVEL register delete error',e);registerSetMessage(e.message||`Unable to delete ${kind}.`,'error');}
+}
+
+function bindRegisterDeleteActions(){
+  document.querySelectorAll('[data-delete-capture]').forEach(b=>b.onclick=()=>deleteRegisterRecord('production_captures',b.dataset.deleteCapture,'capture'));
+  document.querySelectorAll('[data-delete-scrap]').forEach(b=>b.onclick=()=>deleteRegisterRecord('scrap_events',b.dataset.deleteScrap,'scrap'));
+  document.querySelectorAll('[data-delete-downtime]').forEach(b=>b.onclick=()=>deleteRegisterRecord('downtime_events',b.dataset.deleteDowntime,'downtime'));
 }
 
 function bindRegisters(){
   populateRegisterFilters();
   document.querySelectorAll('[data-register-tab]').forEach(b=>b.onclick=()=>{registerState.tab=b.dataset.registerTab;document.querySelectorAll('[data-register-tab]').forEach(x=>x.classList.toggle('active',x===b));renderRegisterTable();});
-  ['regDateFrom','regDateTo','regCustomer','regPart','regShift','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'&&el.type==='search'?'input':'change',renderRegisterTable);});
-  document.getElementById('regClear').onclick=()=>{['regDateFrom','regDateTo','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['regCustomer','regPart','regShift'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderRegisterTable();};
+  ['regDateFrom','regDateTo','regShift','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'&&el.type==='search'?'input':'change',()=>{renderRegisterTable();bindRegisterDeleteActions();});});
+  const regCustomer=document.getElementById('regCustomer'),regPart=document.getElementById('regPart');
+  if(regCustomer)regCustomer.onchange=()=>{
+    const currentPart=regPart?.value||'';
+    const selectedCustomer=regCustomer.value;
+    if(regPart){
+      const available=selectedCustomer?registerState.parts.filter(x=>x.customer_id===selectedCustomer):registerState.parts;
+      regPart.innerHTML='<option value="">All Part Numbers</option>'+available.map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}</option>`).join('');
+      if(available.some(x=>x.id===currentPart))regPart.value=currentPart;
+    }
+    renderRegisterTable();bindRegisterDeleteActions();
+  };
+  if(regPart)regPart.onchange=()=>{renderRegisterTable();bindRegisterDeleteActions();};
+  document.getElementById('regClear').onclick=()=>{['regDateFrom','regDateTo','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['regCustomer','regPart','regShift'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderRegisterTable();bindRegisterDeleteActions();};
   document.getElementById('registerRefresh').onclick=loadRegisters;
   loadRegisters();
 }
