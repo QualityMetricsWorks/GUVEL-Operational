@@ -113,3 +113,8 @@ Corrected KPI comparison display and added configurable KPI threshold colors plu
 
 ## Phase 1.9.B Hotfix 3
 Fixed Dashboard KPI and chart configuration modal controls. The configuration overlay is now always initialized before event binding, so Save, Cancel, X, and Reset work reliably for both KPI and chart settings. No SQL/schema/RLS changes.
+
+
+## Phase 1.9.B Hotfix 4
+
+Corrected KPI and chart configuration controls using direct event binding after dynamic modal creation. Save, Cancel, X and Reset are attached to the newly created modal controls. Added explicit error handling for missing controls. Cache-busting updated to `app.js?v=1.9B-hotfix4` so GitHub Pages/browser cache cannot continue serving the prior Hotfix 2 JavaScript. No database, SQL, RLS, relationship, Capture, or Registers changes.
