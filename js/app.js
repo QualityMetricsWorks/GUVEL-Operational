@@ -792,76 +792,66 @@ function personnelOptions(role, selected=''){
 /* Phase 1.7.A Capture foundation uses existing production_captures as the future source of truth.
    No write is enabled until preflight confirms actual physical columns and RLS. */
 async function renderCaptureFoundation(){
-  await Promise.all([loadPersonnel()]);
-  const [customersRes,pnRes,machineRes,shiftRes,opsRes]=await Promise.all([
+  await loadPersonnel();
+  const [c,p,m,sh,o,d]=await Promise.all([
     sb.from('customers').select('id,name,code').eq('company_id',activeCompanyId).order('name'),
     sb.from('part_numbers').select('id,customer_id,part_number,description').eq('company_id',activeCompanyId).order('part_number'),
     sb.from('machines').select('id,code,name').eq('company_id',activeCompanyId).order('code'),
-    sb.from('shifts').select('id,code,name,start_time,end_time').eq('company_id',activeCompanyId).order('code'),
-    sb.from('operations').select('id,part_number_id,operation_number,operation_name').eq('company_id',activeCompanyId).order('operation_number')
+    sb.from('shifts').select('id,code,name').eq('company_id',activeCompanyId).order('code'),
+    sb.from('operations').select('id,part_number_id,operation_number,operation_name').eq('company_id',activeCompanyId).order('operation_number'),
+    sb.from('downtime_catalog').select('id,code,downtime,category').eq('company_id',activeCompanyId).order('code')
   ]);
-  const customers=customersRes.data||[], partNumbers=pnRes.data||[], machines=machineRes.data||[], shifts=shiftRes.data||[], operations=opsRes.data||[];
-  const main=view; if(!main)return;
-  main.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production capture foundation — Phase 1.7.A</p></div></section>
+  const customers=c.data||[],partNumbers=p.data||[],machines=m.data||[],shifts=sh.data||[],operations=o.data||[],downtimeCatalog=d.data||[];
+  const defectsByPart={};
+  const {data:defects}=await sb.from('scrap_catalog').select('id,code,defect,part_number_id,operation_id').eq('company_id',activeCompanyId).order('code');
+  (defects||[]).forEach(x=>(defectsByPart[x.part_number_id]??=[]).push(x));
+  view.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production, Scrap & Downtime capture</p></div></section>
   <div class="panel"><h3>Production Information</h3><div class="form-grid">
-    <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
-    <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
-    <label>Customer<select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
-    <label>Part Number<select id="capPN"><option value="">Select Part Number</option></select></label>
-    <label>Lot Number<input id="capLot" type="text"></label>
-    <label>Machine<select id="capMachine"><option value="">Select Machine</option></select></label>
-    <label>Operation<select id="capOperation"><option value="">Select Operation</option></select></label>
-    <label>Production Quantity<input id="capQty" type="number" min="1" step="1"></label>
-    <label>Operator<select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></label>
-    <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
-  </div>
-  <label class="confirm-row"><input type="checkbox" id="capConfirm"> I confirm that the information is correct</label>
-  <div class="form-actions"><button class="primary" id="saveCaptureBtn" type="button">Save Production Capture</button></div></div>`;
-  const capCustomer=document.getElementById('capCustomer'),capPN=document.getElementById('capPN'),capMachine=document.getElementById('capMachine'),capOperation=document.getElementById('capOperation');
-  capCustomer.onchange=()=>{
-    const list=partNumbers.filter(p=>p.customer_id===capCustomer.value);
-    capPN.innerHTML='<option value="">Select Part Number</option>'+list.map(p=>`<option value="${p.id}">${escapeHtml(p.part_number)}${p.description?' — '+escapeHtml(p.description):''}</option>`).join('');
-    capMachine.innerHTML='<option value="">Select Machine</option>';capOperation.innerHTML='<option value="">Select Operation</option>';
+  <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
+  <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
+  <label>Customer<select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
+  <label>Part Number<select id="capPN"><option value="">Select Part Number</option></select></label>
+  <label>Lot Number<input id="capLot"></label>
+  <label>Machine<select id="capMachine"><option value="">Select Machine</option></select></label>
+  <label>Operation<select id="capOperation"><option value="">Select Operation</option></select></label>
+  <label>Production Quantity<input id="capQty" type="number" min="1"></label>
+  <label>Operator<select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></label>
+  <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
+  </div><label class="confirm-row"><input type="checkbox" id="capConfirm"> I confirm that the information is correct</label>
+  <div class="form-actions"><button class="primary" id="saveCaptureBtn" type="button">Save Production Capture</button></div>
+  <div id="captureSuccess" class="capture-success" role="status" aria-live="polite"></div></div>
+
+  <div class="capture-secondary-grid">
+  <div class="panel"><h3>Scrap</h3><div class="form-grid">
+  <label>Defect<select id="capScrapDefect"><option value="">Select Part Number first</option></select></label>
+  <label>Quantity<input id="capScrapQty" type="number" min="1"></label>
+  <label>Reason<input id="capScrapReason"></label></div>
+  <div class="form-actions"><button class="primary" id="saveScrapCaptureBtn" type="button">Save Scrap</button></div>
+  <div id="scrapSuccess" class="capture-success" role="status"></div></div>
+
+  <div class="panel"><h3>Downtime</h3><div class="form-grid">
+  <label>Downtime<select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></label>
+  <label>Minutes<input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></label>
+  <label>Reason<input id="capDowntimeReason"></label>
+  <label>Type<select id="capDowntimeType"><option value="">Select Type</option><option>Planned</option><option>Unplanned</option></select></label></div>
+  <div class="form-actions"><button class="primary" id="saveDowntimeCaptureBtn" type="button">Save Downtime</button></div>
+  <div id="downtimeSuccess" class="capture-success" role="status"></div></div></div>`;
+
+  const $=id=>document.getElementById(id), customer=$('capCustomer'),pn=$('capPN'),machine=$('capMachine'),op=$('capOperation'),defect=$('capScrapDefect');
+  customer.onchange=()=>{const a=partNumbers.filter(x=>x.customer_id===customer.value);pn.innerHTML='<option value="">Select Part Number</option>'+a.map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}</option>`).join('');machine.innerHTML='<option value="">Select Machine</option>';op.innerHTML='<option value="">Select Operation</option>';defect.innerHTML='<option value="">Select Part Number first</option>';};
+  pn.onchange=async()=>{const id=pn.value;if(!id)return;const rel=await sb.from('part_number_machines').select('machine_id').eq('part_number_id',id);const ids=new Set((rel.data||[]).map(x=>x.machine_id));machine.innerHTML='<option value="">Select Machine</option>'+machines.filter(x=>ids.has(x.id)).map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');const ops=operations.filter(x=>x.part_number_id===id);op.innerHTML='<option value="">Select Operation</option>'+ops.map(x=>`<option value="${x.id}">${escapeHtml(x.operation_number)}${x.operation_name?' — '+escapeHtml(x.operation_name):''}</option>`).join('');defect.innerHTML='<option value="">Select Defect</option>'+((defectsByPart[id]||[]).map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.defect)}</option>`).join(''));};
+
+  $('saveCaptureBtn').onclick=async()=>{
+    const success=$('captureSuccess');success.className='capture-success';success.textContent='';
+    if(!$('capConfirm').checked){success.textContent='Please confirm that the information is correct.';success.classList.add('show','error');return;}
+    const operator=personnelCache.find(x=>x.id===$('capOperator').value),supervisor=personnelCache.find(x=>x.id===$('capSupervisor').value);
+    const payload={company_id:activeCompanyId,production_date:$('capDate').value,shift_id:$('capShift').value,lot_number:$('capLot').value.trim(),customer_id:customer.value,part_number_id:pn.value,machine_id:machine.value,operation_id:op.value,operator_id:operator?.id||null,supervisor_id:supervisor?.id||null,operator_name:operator?personnelFullName(operator):null,supervisor_name:supervisor?personnelFullName(supervisor):null,production_quantity:Number($('capQty').value),confirmed:true,confirmed_at:new Date().toISOString()};
+    if(!payload.shift_id||!payload.lot_number||!payload.customer_id||!payload.part_number_id||!payload.machine_id||!payload.operation_id||!payload.production_quantity){success.textContent='Please complete all required production information.';success.classList.add('show','error');return;}
+    const {error}=await sb.from('production_captures').insert(payload);if(error){success.textContent=error.message;success.classList.add('show','error');return;}success.textContent='Successfully Saved';success.classList.add('show');$('capConfirm').checked=false;
   };
-  capPN.onchange=async()=>{
-    const pnId=capPN.value;
-    const [relRes]=await Promise.all([sb.from('part_number_machines').select('machine_id').eq('part_number_id',pnId)]);
-    const machineIds=new Set((relRes.data||[]).map(r=>r.machine_id));
-    capMachine.innerHTML='<option value="">Select Machine</option>'+machines.filter(m=>machineIds.has(m.id)).map(m=>`<option value="${m.id}">${escapeHtml(m.code)} — ${escapeHtml(m.name)}</option>`).join('');
-    capOperation.innerHTML='<option value="">Select Operation</option>'+operations.filter(o=>o.part_number_id===pnId).map(o=>`<option value="${o.id}">${escapeHtml(o.operation_number)}${o.operation_name?' — '+escapeHtml(o.operation_name):''}</option>`).join('');
-  };
-  document.getElementById('saveCaptureBtn').onclick=async()=>{
-    const val=id=>document.getElementById(id).value;
-    if(!document.getElementById('capConfirm').checked){alert('Please confirm that the information is correct.');return;}
-    const operator=personnelCache.find(p=>p.id===val('capOperator')), supervisor=personnelCache.find(p=>p.id===val('capSupervisor'));
-    const payload={
-      company_id:activeCompanyId,
-      production_date:val('capDate'),
-      shift_id:val('capShift')||null,
-      lot_number:val('capLot').trim(),
-      customer_id:val('capCustomer')||null,
-      part_number_id:val('capPN')||null,
-      machine_id:val('capMachine')||null,
-      operation_id:val('capOperation')||null,
-      operator_id:operator?.id||null,
-      supervisor_id:supervisor?.id||null,
-      operator_name:operator?`${personnelFullName(operator)} (${operator.employee_id})`:null,
-      supervisor_name:supervisor?`${personnelFullName(supervisor)} (${supervisor.employee_id})`:null,
-      production_quantity:Number(val('capQty')),
-      confirmed:true,
-      confirmed_at:new Date().toISOString()
-    };
-    const required=['shift_id','lot_number','customer_id','part_number_id','machine_id','operation_id','production_quantity'];
-    const missing=required.filter(k=>payload[k]===null||payload[k]===''||Number.isNaN(payload[k]));
-    if(missing.length){alert('Please complete all required production information.');return;}
-    const {error}=await sb.from('production_captures').insert(payload);
-    if(error){console.error(error);alert(error.message);return;}
-    alert('Production capture saved successfully.');
-    await renderCaptureFoundation();
-  };
+  $('saveScrapCaptureBtn').onclick=async()=>{const success=$('scrapSuccess');success.className='capture-success';const qty=Number($('capScrapQty').value);if(!pn.value||!op.value||!defect.value||qty<1){success.textContent='Select Part Number, Operation, Defect and Quantity.';success.classList.add('show','error');return;}const {error}=await sb.from('scrap_events').insert({company_id:activeCompanyId,part_number_id:pn.value,operation_id:op.value,defect_catalog_id:defect.value,quantity:qty,reason:$('capScrapReason').value.trim()||null,customer_id:customer.value||null,machine_id:machine.value||null,shift_id:$('capShift').value||null});if(error){success.textContent=error.message;success.classList.add('show','error');return;}success.textContent='Successfully Saved';success.classList.add('show');};
+  $('saveDowntimeCaptureBtn').onclick=async()=>{const success=$('downtimeSuccess');success.className='capture-success';const minutes=Number($('capDowntimeMinutes').value),type=$('capDowntimeType').value;if(!$('capDowntime').value||minutes<=0||!type){success.textContent='Select Downtime, Minutes and Type.';success.classList.add('show','error');return;}const {error}=await sb.from('downtime_events').insert({company_id:activeCompanyId,downtime_catalog_id:$('capDowntime').value,minutes,type,reason:$('capDowntimeReason').value.trim()||null,customer_id:customer.value||null,part_number_id:pn.value||null,machine_id:machine.value||null,shift_id:$('capShift').value||null});if(error){success.textContent=error.message;success.classList.add('show','error');return;}success.textContent='Successfully Saved';success.classList.add('show');};
 }
-
-
 /* ===== GUARANTEED APPLICATION STARTUP — HOTFIX 2 ===== */
 window.addEventListener('DOMContentLoaded',()=>{
   bindAuth();

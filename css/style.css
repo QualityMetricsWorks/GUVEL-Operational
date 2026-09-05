@@ -201,3 +201,7 @@
 .phase17-form{margin:0 0 18px}
 .phase17-notice{padding:14px 16px;border-left:4px solid #0cc0df;background:rgba(12,192,223,.08);margin-bottom:16px}
 .capture-search-note{font-size:.9rem;opacity:.8;margin-top:12px}
+
+.capture-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.capture-success{display:none;margin-top:10px;font-weight:800}.capture-success.show{display:block}.capture-success:not(.error){color:#006732}.capture-success.error{color:#ff3131}
+@media(max-width:900px){.capture-secondary-grid{grid-template-columns:1fr}}
