@@ -636,7 +636,7 @@ document.addEventListener('click', async (event)=>{
   }
 });
 
-function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return table('Registers',['Production / Scrap / Downtime','Date / Time','Shift','Lot / Event','Part Number','Quantity / Minutes']);case'Personnel':return '';case'Settings':return shiftsPage();default:return '';}}
+function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return registersPage();case'Personnel':return '';case'Settings':return shiftsPage();default:return '';}}
 async function render(){
   try{
     if(!view) throw new Error('Application view container was not found.');
@@ -663,6 +663,7 @@ async function render(){
     if(current==='Part Numbers') bindPartNumbers();
     if(current==='Machines') bindMachines();
     if(current==='Catalog') bindCatalog();
+    if(current==='Registers') bindRegisters();
   }catch(error){
     console.error('GUVEL render error:',error);
     view.innerHTML=`<div class="panel"><h2>Module loading error</h2><p>${escapeHtml(error.message||'Unknown error')}</p></div>`;
@@ -961,6 +962,134 @@ async function renderCaptureFoundation(){
 
   renderScrapDraft();renderDowntimeDraft();
 }
+
+/* ===== GUVEL Operational Phase 1.8 — Registers =====
+   Read-only operational registers derived from transactional source tables.
+   No new tables, columns, or migrations are introduced.
+*/
+let registerState={tab:'Production',production:[],scrap:[],downtime:[],customers:[],parts:[],shifts:[]};
+
+function registersPage(){
+  return head('Registers','Traceable operational records derived from the Capture transaction.')+`
+    <div class="notice register-notice"><strong>Source of truth:</strong> Registers read directly from Production Capture, Scrap Events and Downtime Events. No duplicate register data is created.</div>
+    <div class="tabs register-tabs">
+      <button class="tab ${registerState.tab==='Production'?'active':''}" data-register-tab="Production">Production</button>
+      <button class="tab ${registerState.tab==='Scrap'?'active':''}" data-register-tab="Scrap">Scrap</button>
+      <button class="tab ${registerState.tab==='Downtime'?'active':''}" data-register-tab="Downtime">Downtime</button>
+    </div>
+    <div class="panel register-filter-panel">
+      <div class="section-title"><div><h2>Filters</h2><p>Filters apply to the selected register only.</p></div><button id="registerRefresh" class="secondary" type="button">Refresh</button></div>
+      <div class="form-grid register-filters">
+        <div class="field"><label>Date From</label><input id="regDateFrom" type="date"></div>
+        <div class="field"><label>Date To</label><input id="regDateTo" type="date"></div>
+        <div class="field"><label>Customer</label><select id="regCustomer"><option value="">All Customers</option></select></div>
+        <div class="field"><label>Part Number</label><select id="regPart"><option value="">All Part Numbers</option></select></div>
+        <div class="field"><label>Shift</label><select id="regShift"><option value="">All Shifts</option></select></div>
+        <div class="field"><label>Search</label><input id="regSearch" type="search" placeholder="Lot, part number, machine, defect..."></div>
+      </div>
+      <div class="actions"><button id="regClear" class="secondary" type="button">Clear Filters</button></div>
+      <div id="registerMessage" class="status" aria-live="polite"></div>
+    </div>
+    <div id="registerSummary" class="register-summary"></div>
+    <div class="table-wrap register-table-wrap"><table id="registerTable"><thead></thead><tbody><tr><td>Loading registers...</td></tr></tbody></table></div>`;
+}
+
+function registerSetMessage(text,type=''){const el=document.getElementById('registerMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
+function registerDateValue(v){return v?String(v).slice(0,10):'';}
+function registerDateTime(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?escapeHtml(v):d.toLocaleString();}
+function registerMoney(v){return v==null?'—':Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+async function loadRegisterMasterData(){
+  const [c,p,s]=await Promise.all([
+    sb.from('customers').select('id,code,name').eq('company_id',activeCompanyId).order('name'),
+    sb.from('part_numbers').select('id,part_number,customer_id').eq('company_id',activeCompanyId).order('part_number'),
+    sb.from('shifts').select('id,code,name').eq('company_id',activeCompanyId).order('code')
+  ]);
+  if(c.error)throw c.error;if(p.error)throw p.error;if(s.error)throw s.error;
+  registerState.customers=c.data||[];registerState.parts=p.data||[];registerState.shifts=s.data||[];
+}
+
+function populateRegisterFilters(){
+  const customer=document.getElementById('regCustomer'),part=document.getElementById('regPart'),shift=document.getElementById('regShift');
+  if(!customer)return;
+  customer.innerHTML='<option value="">All Customers</option>'+registerState.customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');
+  part.innerHTML='<option value="">All Part Numbers</option>'+registerState.parts.map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}</option>`).join('');
+  shift.innerHTML='<option value="">All Shifts</option>'+registerState.shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');
+}
+
+function getRegisterFilters(){return {from:document.getElementById('regDateFrom')?.value||'',to:document.getElementById('regDateTo')?.value||'',customer:document.getElementById('regCustomer')?.value||'',part:document.getElementById('regPart')?.value||'',shift:document.getElementById('regShift')?.value||'',search:(document.getElementById('regSearch')?.value||'').trim().toLowerCase()};}
+function registerDateMatch(date,from,to){const d=registerDateValue(date);return (!from||d>=from)&&(!to||d<=to);}
+
+function customerName(id){const x=registerState.customers.find(c=>c.id===id);return x?`${x.code} — ${x.name}`:'—';}
+function partName(id){const x=registerState.parts.find(p=>p.id===id);return x?.part_number||'—';}
+function shiftName(id){const x=registerState.shifts.find(s=>s.id===id);return x?`${x.code} — ${x.name}`:'—';}
+
+function registerSearchText(r,tab){
+  if(tab==='Production')return [r.lot_number,partName(r.part_number_id),customerName(r.customer_id),r.machine?.code,r.machine?.name,r.operation?.operation_number,r.operation?.operation_name,r.operator_name,r.supervisor_name,shiftName(r.shift_id)].join(' ').toLowerCase();
+  if(tab==='Scrap')return [r.lot_number,partName(r.part_number_id),customerName(r.customer_id),r.machine?.code,r.machine?.name,r.defect?.code,r.defect?.defect,r.defect?.category,r.operation?.operation_number,r.operation?.operation_name,r.reason].join(' ').toLowerCase();
+  return [r.customer_id&&customerName(r.customer_id),partName(r.part_number_id),r.machine?.code,r.machine?.name,r.downtime?.code,r.downtime?.downtime,r.downtime?.category,r.event_type,r.reason].join(' ').toLowerCase();
+}
+
+function filteredRegisterRows(tab){
+  const f=getRegisterFilters(),rows=registerState[tab.toLowerCase()]||[];
+  return rows.filter(r=>{
+    const date=r.production_date;
+    if(!registerDateMatch(date,f.from,f.to))return false;
+    if(f.customer&&r.customer_id!==f.customer)return false;
+    if(f.part&&r.part_number_id!==f.part)return false;
+    if(f.shift&&r.shift_id!==f.shift)return false;
+    return !f.search||registerSearchText(r,tab).includes(f.search);
+  });
+}
+
+function renderRegisterTable(){
+  const tab=registerState.tab,rows=filteredRegisterRows(tab),thead=document.querySelector('#registerTable thead'),tbody=document.querySelector('#registerTable tbody'),summary=document.getElementById('registerSummary');
+  if(!thead||!tbody)return;
+  if(tab==='Production'){
+    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Operator</th><th>Supervisor</th><th>Production Qty</th><th>Confirmed</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.captured_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.operator_name||'—')}</td><td>${escapeHtml(r.supervisor_name||'—')}</td><td>${Number(r.production_quantity||0).toLocaleString()}</td><td>${r.confirmed?'Yes':'No'}</td></tr>`).join(''):'<tr><td colspan="11" class="empty">No Production records match the selected filters.</td></tr>';
+    const total=rows.reduce((n,r)=>n+Number(r.production_quantity||0),0);summary.innerHTML=`<div class="card"><div class="label">Production Records</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Production Quantity</div><div class="metric">${total.toLocaleString()}</div></div>`;
+  } else if(tab==='Scrap'){
+    thead.innerHTML='<tr><th>Date / Time</th><th>Shift</th><th>Lot</th><th>Customer</th><th>Part Number</th><th>Operation</th><th>Machine</th><th>Defect Code</th><th>Defect</th><th>Category</th><th>Scrap Qty</th><th>Scrap Cost</th><th>Reason</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>{const cost=Number(r.scrap_cost||0)*Number(r.quantity||0);return `<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(shiftName(r.shift_id))}</td><td>${escapeHtml(r.lot_number)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.operation?.operation_number||'')} ${r.operation?.operation_name?'— '+escapeHtml(r.operation.operation_name):''}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.defect?.code||'—')}</td><td>${escapeHtml(r.defect?.defect||'—')}</td><td>${escapeHtml(r.defect?.category||'—')}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${registerMoney(cost)}</td><td>${escapeHtml(r.reason||'—')}</td></tr>`}).join(''):'<tr><td colspan="13" class="empty">No Scrap records match the selected filters.</td></tr>';
+    const total=rows.reduce((n,r)=>n+Number(r.quantity||0),0),cost=rows.reduce((n,r)=>n+Number(r.quantity||0)*Number(r.scrap_cost||0),0);summary.innerHTML=`<div class="card"><div class="label">Scrap Events</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Scrap Quantity</div><div class="metric">${total.toLocaleString()}</div></div><div class="card"><div class="label">Scrap Cost</div><div class="metric">${registerMoney(cost)}</div></div>`;
+  } else {
+    thead.innerHTML='<tr><th>Date / Time</th><th>Customer</th><th>Part Number</th><th>Machine</th><th>Downtime Code</th><th>Downtime</th><th>Category</th><th>Type</th><th>Minutes</th><th>Reason</th></tr>';
+    tbody.innerHTML=rows.length?rows.map(r=>`<tr><td>${registerDateTime(r.created_at)}</td><td>${escapeHtml(customerName(r.customer_id))}</td><td>${escapeHtml(partName(r.part_number_id))}</td><td>${escapeHtml(r.machine?`${r.machine.code} — ${r.machine.name||''}`:'—')}</td><td>${escapeHtml(r.downtime?.code||'—')}</td><td>${escapeHtml(r.downtime?.downtime||'—')}</td><td>${escapeHtml(r.downtime?.category||'—')}</td><td>${escapeHtml(r.event_type||'—')}</td><td>${Number(r.minutes||0).toLocaleString(undefined,{maximumFractionDigits:2})}</td><td>${escapeHtml(r.reason||'—')}</td></tr>`).join(''):'<tr><td colspan="10" class="empty">No Downtime records match the selected filters.</td></tr>';
+    const total=rows.reduce((n,r)=>n+Number(r.minutes||0),0);summary.innerHTML=`<div class="card"><div class="label">Downtime Events</div><div class="metric">${rows.length.toLocaleString()}</div></div><div class="card"><div class="label">Downtime Minutes</div><div class="metric">${total.toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>`;
+  }
+}
+
+async function loadRegisters(){
+  if(!sb||!activeCompanyId){registerSetMessage('Supabase configuration or active company is missing.','error');return;}
+  registerSetMessage('Loading registers...');
+  try{
+    await loadRegisterMasterData();
+    const [prod,scrap,down]=await Promise.all([
+      sb.from('production_captures').select('id,captured_at,production_date,shift_id,lot_number,customer_id,part_number_id,machine_id,operation_id,operator_name,supervisor_name,production_quantity,confirmed,machines(code,name),operations(operation_number,operation_name)').eq('company_id',activeCompanyId).order('captured_at',{ascending:false}),
+      sb.from('scrap_events').select('id,production_capture_id,company_id,scrap_catalog_id,quantity,reason,created_at,production_captures!inner(captured_at,production_date,shift_id,lot_number,customer_id,part_number_id,machine_id,operation_id,machines(code,name),operations(operation_number,operation_name),part_numbers!inner(scrap_cost)),scrap_catalog(code,defect,category)').eq('company_id',activeCompanyId).order('created_at',{ascending:false}),
+      sb.from('downtime_events').select('id,production_capture_id,company_id,downtime_catalog_id,minutes,reason,event_type,created_at,production_captures!inner(captured_at,production_date,shift_id,customer_id,part_number_id,machine_id,machines(code,name)),downtime_catalog(code,downtime,category)').eq('company_id',activeCompanyId).order('created_at',{ascending:false})
+    ]);
+    if(prod.error)throw new Error(`Production Register: ${prod.error.message}`);
+    if(scrap.error)throw new Error(`Scrap Register: ${scrap.error.message}`);
+    if(down.error)throw new Error(`Downtime Register: ${down.error.message}`);
+    registerState.production=prod.data||[];
+    registerState.scrap=(scrap.data||[]).map(r=>{const p=r.production_captures||{};return {...r,captured_at:p.captured_at,production_date:p.production_date,shift_id:p.shift_id,lot_number:p.lot_number,customer_id:p.customer_id,part_number_id:p.part_number_id,machine_id:p.machine_id,operation_id:p.operation_id,machine:p.machines||p.machine,operation:p.operations||p.operation,defect:r.scrap_catalog||r.scrapCatalog,scrap_cost:p.part_numbers?.scrap_cost||0};});
+    registerState.downtime=(down.data||[]).map(r=>{const p=r.production_captures||{};return {...r,captured_at:p.captured_at,production_date:p.production_date,shift_id:p.shift_id,customer_id:p.customer_id,part_number_id:p.part_number_id,machine_id:p.machine_id,machine:p.machines||p.machine,downtime:r.downtime_catalog||r.downtimeCatalog};});
+    registerSetMessage(`Loaded ${registerState.production.length.toLocaleString()} Production, ${registerState.scrap.length.toLocaleString()} Scrap and ${registerState.downtime.length.toLocaleString()} Downtime records.`);
+    renderRegisterTable();
+  }catch(e){console.error('GUVEL register load error',e);registerSetMessage(e.message||'Unable to load registers.','error');const body=document.querySelector('#registerTable tbody');if(body)body.innerHTML=`<tr><td class="empty">${escapeHtml(e.message||'Unable to load registers.')}</td></tr>`;}
+}
+
+function bindRegisters(){
+  populateRegisterFilters();
+  document.querySelectorAll('[data-register-tab]').forEach(b=>b.onclick=()=>{registerState.tab=b.dataset.registerTab;document.querySelectorAll('[data-register-tab]').forEach(x=>x.classList.toggle('active',x===b));renderRegisterTable();});
+  ['regDateFrom','regDateTo','regCustomer','regPart','regShift','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'&&el.type==='search'?'input':'change',renderRegisterTable);});
+  document.getElementById('regClear').onclick=()=>{['regDateFrom','regDateTo','regSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['regCustomer','regPart','regShift'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderRegisterTable();};
+  document.getElementById('registerRefresh').onclick=loadRegisters;
+  loadRegisters();
+}
+
 /* ===== GUARANTEED APPLICATION STARTUP — HOTFIX 2 ===== */
 window.addEventListener('DOMContentLoaded',()=>{
   bindAuth();

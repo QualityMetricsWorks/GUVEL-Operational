@@ -219,3 +219,15 @@
 .capture-draft-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
 .capture-draft-table tr:last-child td{border-bottom:0}
 .capture-remove{padding:5px 8px;font-size:.72rem}
+
+
+/* Phase 1.8 — Registers */
+.register-notice{margin-bottom:18px}
+.register-filter-panel{margin-bottom:18px}
+.register-filters{margin-top:14px}
+.register-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.register-summary .card{min-height:105px}
+.register-tabs{margin-bottom:14px}
+.register-table-wrap{max-width:100%;}
+.register-table-wrap table{min-width:1200px}
+@media(max-width:720px){.register-table-wrap table{min-width:1050px}.register-summary{grid-template-columns:1fr}}

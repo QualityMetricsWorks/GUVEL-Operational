@@ -1,17 +1,61 @@
-# GUVEL Operational — Phase 1.7.A Hotfix 5
+# GUVEL Operational — Phase 1.8: Registers
 
-Capture Transactional Draft UX
+## Status
+READY FOR USER ACCEPTANCE
 
-Production, Scrap and Downtime are now one logical Capture. Scrap and Downtime are added to an in-memory draft and are persisted only by the single final SAVE button.
+## Scope
+Phase 1.8 adds the Registers module with three read-only operational views:
+
+- Production
+- Scrap
+- Downtime
+
+Registers are query surfaces over the existing transactional Capture model. They do not create duplicate register tables.
+
+## Transactional source model
+
+`production_captures` is the parent transaction.
+
+`0..N scrap_events` and `0..N downtime_events` are children linked by `production_capture_id`.
+
+Customer, Part Number, Machine, Operation and Shift context is inherited through the parent Capture rather than duplicated in event tables.
+
+## Register behavior
+
+Each register supports:
+- Date From / Date To
+- Customer
+- Part Number
+- Shift
+- Free-text search
+- Clear Filters
+- Refresh
+
+The Scrap register also calculates displayed Scrap Cost as:
+
+`Scrap Quantity × Part Number Scrap Cost`
+
+The Downtime register displays event Type and Minutes.
+
+## Database
 
 No SQL migration is required.
+No new table is required.
+No new column is required.
+No RLS change is required.
 
-See:
-- PHASE_1_7A_HOTFIX_5_README.txt
-- SYSTEM_CONTRACT_v1.7A_HOTFIX5.txt
-- DATABASE_SCHEMA_MAP_v1.7A_HOTFIX5.txt
-- DATABASE_RELATIONSHIP_MAP_HOTFIX5.txt
-- SECURITY_MAP_HOTFIX5.txt
-- LESSONS_LEARNED_HOTFIX5.txt
-- VERSION_HISTORY_HOTFIX5.txt
-- USER_ACCEPTANCE_TEST_HOTFIX5.txt
+## Files
+
+The package preserves the Architecture Lock records from previous phases and adds Phase 1.8 records:
+
+- PREFLIGHT_PHASE_1_8.txt
+- GUVEL_Operational_Phase_1.8_DATABASE_SCHEMA_MAP.txt
+- GUVEL_Operational_Phase_1.8_DATABASE_RELATIONSHIP_MAP.txt
+- GUVEL_Operational_Phase_1.8_SECURITY_MAP.txt
+- GUVEL_Operational_Phase_1.8_SYSTEM_CONTRACT.txt
+- GUVEL_Operational_Phase_1.8_LESSONS_LEARNED.txt
+- GUVEL_Operational_Phase_1.8_VERSION_HISTORY.txt
+- RELEASE_VALIDATION_PHASE_1_8.txt
+- USER_ACCEPTANCE_TEST_v1.8.txt
+
+Dashboard remains intentionally deferred until the final stage.
