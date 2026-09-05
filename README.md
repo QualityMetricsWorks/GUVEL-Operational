@@ -101,3 +101,11 @@ No SQL/schema/RLS change is required.
 Production, Quality and Performance detailed dashboard views remain deferred to later Phase 1.9 subphases.
 
 Status: READY FOR USER ACCEPTANCE
+
+
+## Phase 1.9.B Hotfix 2
+KPI comparison display corrected to percent difference for OEE/Scrap/Yield/COPQ. Added KPI gear threshold/color configuration and per-chart Min/Max/Objective reference-line configuration. Frontend/local preferences only; no SQL/schema/RLS changes.
+
+
+## Phase 1.9.B Hotfix 2
+Corrected KPI comparison display and added configurable KPI threshold colors plus chart Min/Max/Objective reference lines. Frontend/local preferences only; no SQL/schema/RLS changes.
