@@ -109,3 +109,7 @@ KPI comparison display corrected to percent difference for OEE/Scrap/Yield/COPQ.
 
 ## Phase 1.9.B Hotfix 2
 Corrected KPI comparison display and added configurable KPI threshold colors plus chart Min/Max/Objective reference lines. Frontend/local preferences only; no SQL/schema/RLS changes.
+
+
+## Phase 1.9.B Hotfix 3
+Fixed Dashboard KPI and chart configuration modal controls. The configuration overlay is now always initialized before event binding, so Save, Cancel, X, and Reset work reliably for both KPI and chart settings. No SQL/schema/RLS changes.
