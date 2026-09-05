@@ -793,7 +793,6 @@ function personnelOptions(role, selected=''){
    No write is enabled until preflight confirms actual physical columns and RLS. */
 async function renderCaptureFoundation(){
   await loadPersonnel();
-  let currentProductionCaptureId=null;
   const [c,p,m,sh,o,d]=await Promise.all([
     sb.from('customers').select('id,name,code').eq('company_id',activeCompanyId).order('name'),
     sb.from('part_numbers').select('id,customer_id,part_number,description').eq('company_id',activeCompanyId).order('part_number'),
@@ -806,7 +805,15 @@ async function renderCaptureFoundation(){
   const defectsByPart={};
   const {data:defects}=await sb.from('scrap_catalog').select('id,code,defect,part_number_id,operation_id').eq('company_id',activeCompanyId).order('code');
   (defects||[]).forEach(x=>(defectsByPart[x.part_number_id]??=[]).push(x));
-  view.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production, Scrap & Downtime capture</p></div></section>
+
+  // Draft arrays: Scrap/Downtime are part of the Capture and are not persisted until the single SAVE.
+  let scrapDraft=[];
+  let downtimeDraft=[];
+  let saving=false;
+
+  view.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production, Scrap & Downtime — one controlled transaction</p></div></section>
+  <div class="panel phase17-notice"><strong>One Capture = Production + 0..N Scrap Events + 0..N Downtime Events.</strong><br>Use <b>Add Scrap</b> and <b>Add Downtime</b> to build the record. Nothing is saved until the single <b>SAVE</b> button at the bottom is pressed.</div>
+
   <div class="panel"><h3>Production Information</h3><div class="form-grid">
   <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
   <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
@@ -818,40 +825,141 @@ async function renderCaptureFoundation(){
   <label>Production Quantity<input id="capQty" type="number" min="1"></label>
   <label>Operator<select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></label>
   <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
-  </div><label class="confirm-row"><input type="checkbox" id="capConfirm"> I confirm that the information is correct</label>
-  <div class="form-actions"><button class="primary" id="saveCaptureBtn" type="button">Save Production Capture</button></div>
-  <div id="captureSuccess" class="capture-success" role="status" aria-live="polite"></div></div>
+  </div></div>
 
   <div class="capture-secondary-grid">
-  <div class="panel"><h3>Scrap</h3><div class="form-grid">
-  <label>Defect<select id="capScrapDefect"><option value="">Select Part Number first</option></select></label>
-  <label>Quantity<input id="capScrapQty" type="number" min="1"></label>
-  <label>Reason<input id="capScrapReason"></label></div>
-  <div class="form-actions"><button class="primary" id="saveScrapCaptureBtn" type="button">Save Scrap</button></div>
-  <div id="scrapSuccess" class="capture-success" role="status"></div></div>
+    <div class="panel"><div class="section-title"><div><h3>Scrap</h3><p>Add one or more scrap events to this Capture.</p></div></div>
+      <div class="form-grid">
+        <label>Defect<select id="capScrapDefect"><option value="">Select Part Number first</option></select></label>
+        <label>Quantity<input id="capScrapQty" type="number" min="1"></label>
+        <label>Reason<input id="capScrapReason"></label>
+      </div>
+      <div class="form-actions"><button class="secondary" id="addScrapBtn" type="button">Add Scrap</button></div>
+      <div id="scrapDraftList" class="capture-draft-list"></div>
+      <div id="scrapSuccess" class="capture-success" role="status" aria-live="polite"></div>
+    </div>
 
-  <div class="panel"><h3>Downtime</h3><div class="form-grid">
-  <label>Downtime<select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></label>
-  <label>Minutes<input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></label>
-  <label>Reason<input id="capDowntimeReason"></label>
-  <label>Type<select id="capDowntimeType"><option value="">Select Type</option><option>Planned</option><option>Unplanned</option></select></label></div>
-  <div class="form-actions"><button class="primary" id="saveDowntimeCaptureBtn" type="button">Save Downtime</button></div>
-  <div id="downtimeSuccess" class="capture-success" role="status"></div></div></div>`;
+    <div class="panel"><div class="section-title"><div><h3>Downtime</h3><p>Add one or more downtime events to this Capture.</p></div></div>
+      <div class="form-grid">
+        <label>Downtime<select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></label>
+        <label>Minutes<input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></label>
+        <label>Reason<input id="capDowntimeReason"></label>
+        <label>Type<select id="capDowntimeType"><option value="">Select Type</option><option value="Planned">Planned</option><option value="Unplanned">Unplanned</option></select></label>
+      </div>
+      <div class="form-actions"><button class="secondary" id="addDowntimeBtn" type="button">Add Downtime</button></div>
+      <div id="downtimeDraftList" class="capture-draft-list"></div>
+      <div id="downtimeSuccess" class="capture-success" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="panel capture-save-panel">
+    <label class="confirm-row"><input type="checkbox" id="capConfirm"> I confirm that the information is correct</label>
+    <div class="form-actions"><button class="primary capture-final-save" id="saveCaptureBtn" type="button">SAVE</button></div>
+    <div id="captureSuccess" class="capture-success" role="status" aria-live="polite"></div>
+  </div>`;
 
   const $=id=>document.getElementById(id), customer=$('capCustomer'),pn=$('capPN'),machine=$('capMachine'),op=$('capOperation'),defect=$('capScrapDefect');
+
+  function clearStatus(id){const el=$(id);if(el){el.textContent='';el.className='capture-success';}}
+  function showStatus(id,text,type='success'){const el=$(id);if(!el)return;el.textContent=text;el.className='capture-success show'+(type==='error'?' error':'');}
+  function renderScrapDraft(){
+    const host=$('scrapDraftList');
+    if(!scrapDraft.length){host.innerHTML='<div class="capture-draft-empty">No Scrap added to this Capture.</div>';return;}
+    host.innerHTML=`<div class="capture-draft-title">Added Scrap (${scrapDraft.length})</div><div class="capture-draft-table"><table><thead><tr><th>Defect</th><th>Qty</th><th>Reason</th><th></th></tr></thead><tbody>${scrapDraft.map((x,i)=>`<tr><td>${escapeHtml(x.code)} — ${escapeHtml(x.defect)}</td><td>${x.quantity}</td><td>${escapeHtml(x.reason||'—')}</td><td><button class="danger capture-remove" type="button" data-remove-scrap="${i}" aria-label="Remove scrap">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
+    host.querySelectorAll('[data-remove-scrap]').forEach(b=>b.onclick=()=>{scrapDraft.splice(Number(b.dataset.removeScrap),1);renderScrapDraft();clearStatus('scrapSuccess');});
+  }
+  function renderDowntimeDraft(){
+    const host=$('downtimeDraftList');
+    if(!downtimeDraft.length){host.innerHTML='<div class="capture-draft-empty">No Downtime added to this Capture.</div>';return;}
+    host.innerHTML=`<div class="capture-draft-title">Added Downtime (${downtimeDraft.length})</div><div class="capture-draft-table"><table><thead><tr><th>Downtime</th><th>Min.</th><th>Type</th><th>Reason</th><th></th></tr></thead><tbody>${downtimeDraft.map((x,i)=>`<tr><td>${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</td><td>${x.minutes}</td><td>${escapeHtml(x.event_type)}</td><td>${escapeHtml(x.reason||'—')}</td><td><button class="danger capture-remove" type="button" data-remove-downtime="${i}" aria-label="Remove downtime">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
+    host.querySelectorAll('[data-remove-downtime]').forEach(b=>b.onclick=()=>{downtimeDraft.splice(Number(b.dataset.removeDowntime),1);renderDowntimeDraft();clearStatus('downtimeSuccess');});
+  }
+  function resetDraftForm(){
+    $('capScrapDefect').value='';$('capScrapQty').value='';$('capScrapReason').value='';
+    $('capDowntime').value='';$('capDowntimeMinutes').value='';$('capDowntimeReason').value='';$('capDowntimeType').value='';
+  }
+  function resetCaptureForm(){
+    $('capDate').value=new Date().toISOString().slice(0,10);$('capShift').value='';$('capCustomer').value='';$('capPN').innerHTML='<option value="">Select Part Number</option>';$('capLot').value='';$('capMachine').innerHTML='<option value="">Select Machine</option>';$('capOperation').innerHTML='<option value="">Select Operation</option>';$('capQty').value='';$('capOperator').value='';$('capSupervisor').value='';$('capScrapDefect').innerHTML='<option value="">Select Part Number first</option>';$('capConfirm').checked=false;scrapDraft=[];downtimeDraft=[];resetDraftForm();renderScrapDraft();renderDowntimeDraft();
+  }
+
   customer.onchange=()=>{const a=partNumbers.filter(x=>x.customer_id===customer.value);pn.innerHTML='<option value="">Select Part Number</option>'+a.map(x=>`<option value="${x.id}">${escapeHtml(x.part_number)}</option>`).join('');machine.innerHTML='<option value="">Select Machine</option>';op.innerHTML='<option value="">Select Operation</option>';defect.innerHTML='<option value="">Select Part Number first</option>';};
   pn.onchange=async()=>{const id=pn.value;if(!id)return;const rel=await sb.from('part_number_machines').select('machine_id').eq('part_number_id',id);const ids=new Set((rel.data||[]).map(x=>x.machine_id));machine.innerHTML='<option value="">Select Machine</option>'+machines.filter(x=>ids.has(x.id)).map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('');const ops=operations.filter(x=>x.part_number_id===id);op.innerHTML='<option value="">Select Operation</option>'+ops.map(x=>`<option value="${x.id}">${escapeHtml(x.operation_number)}${x.operation_name?' — '+escapeHtml(x.operation_name):''}</option>`).join('');defect.innerHTML='<option value="">Select Defect</option>'+((defectsByPart[id]||[]).map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.defect)}</option>`).join(''));};
 
-  $('saveCaptureBtn').onclick=async()=>{
-    const success=$('captureSuccess');success.className='capture-success';success.textContent='';
-    if(!$('capConfirm').checked){success.textContent='Please confirm that the information is correct.';success.classList.add('show','error');return;}
-    const operator=personnelCache.find(x=>x.id===$('capOperator').value),supervisor=personnelCache.find(x=>x.id===$('capSupervisor').value);
-    const payload={company_id:activeCompanyId,production_date:$('capDate').value,shift_id:$('capShift').value,lot_number:$('capLot').value.trim(),customer_id:customer.value,part_number_id:pn.value,machine_id:machine.value,operation_id:op.value,operator_id:operator?.id||null,supervisor_id:supervisor?.id||null,operator_name:operator?personnelFullName(operator):null,supervisor_name:supervisor?personnelFullName(supervisor):null,production_quantity:Number($('capQty').value),confirmed:true,confirmed_at:new Date().toISOString()};
-    if(!payload.shift_id||!payload.lot_number||!payload.customer_id||!payload.part_number_id||!payload.machine_id||!payload.operation_id||!payload.production_quantity){success.textContent='Please complete all required production information.';success.classList.add('show','error');return;}
-    const {data,error}=await sb.from('production_captures').insert(payload).select('id').single();if(error){success.textContent=error.message;success.classList.add('show','error');return;}currentProductionCaptureId=data?.id||null;success.textContent='Successfully Saved';success.classList.add('show');$('capConfirm').checked=false;
+  $('addScrapBtn').onclick=()=>{
+    clearStatus('scrapSuccess');
+    const qty=Number($('capScrapQty').value), defectId=defect.value;
+    const selected=(defectsByPart[pn.value]||[]).find(x=>x.id===defectId);
+    if(!pn.value||!op.value||!selected||qty<1){showStatus('scrapSuccess','Select Part Number, Operation, Defect and a Scrap Quantity greater than 0.','error');return;}
+    const productionQty=Number($('capQty').value);
+    const existingTotal=scrapDraft.reduce((sum,x)=>sum+Number(x.quantity),0);
+    if(productionQty>0 && existingTotal+qty>productionQty){showStatus('scrapSuccess',`Total Scrap (${existingTotal+qty}) cannot exceed Production Quantity (${productionQty}).`,'error');return;}
+    scrapDraft.push({scrap_catalog_id:selected.id,code:selected.code,defect:selected.defect,quantity:qty,reason:$('capScrapReason').value.trim()||null});
+    renderScrapDraft();
+    resetDraftForm();
+    showStatus('scrapSuccess','Scrap added to this Capture.','success');
   };
-  $('saveScrapCaptureBtn').onclick=async()=>{const success=$('scrapSuccess');success.className='capture-success';const qty=Number($('capScrapQty').value);if(!currentProductionCaptureId){success.textContent='Save Production Capture first, then add Scrap to that capture.';success.classList.add('show','error');return;}if(!pn.value||!op.value||!defect.value||qty<1){success.textContent='Select Part Number, Operation, Defect and Quantity.';success.classList.add('show','error');return;}const {error}=await sb.from('scrap_events').insert({production_capture_id:currentProductionCaptureId,company_id:activeCompanyId,scrap_catalog_id:defect.value,quantity:qty,reason:$('capScrapReason').value.trim()||null});if(error){success.textContent=error.message;success.classList.add('show','error');return;}success.textContent='Successfully Saved';success.classList.add('show');};
-  $('saveDowntimeCaptureBtn').onclick=async()=>{const success=$('downtimeSuccess');success.className='capture-success';const minutes=Number($('capDowntimeMinutes').value),type=$('capDowntimeType').value;if(!currentProductionCaptureId){success.textContent='Save Production Capture first, then add Downtime to that capture.';success.classList.add('show','error');return;}if(!$('capDowntime').value||minutes<=0||!type){success.textContent='Select Downtime, Minutes and Type.';success.classList.add('show','error');return;}const {error}=await sb.from('downtime_events').insert({production_capture_id:currentProductionCaptureId,company_id:activeCompanyId,downtime_catalog_id:$('capDowntime').value,minutes,reason:$('capDowntimeReason').value.trim()||null,event_type:type});if(error){success.textContent=error.message;success.classList.add('show','error');return;}success.textContent='Successfully Saved';success.classList.add('show');};
+
+  $('addDowntimeBtn').onclick=()=>{
+    clearStatus('downtimeSuccess');
+    const dtId=$('capDowntime').value, minutes=Number($('capDowntimeMinutes').value), type=$('capDowntimeType').value;
+    const selected=downtimeCatalog.find(x=>x.id===dtId);
+    if(!selected||minutes<=0||!type){showStatus('downtimeSuccess','Select Downtime, Minutes greater than 0 and Type.','error');return;}
+    downtimeDraft.push({downtime_catalog_id:selected.id,code:selected.code,downtime:selected.downtime,minutes,event_type:type,reason:$('capDowntimeReason').value.trim()||null});
+    renderDowntimeDraft();
+    resetDraftForm();
+    showStatus('downtimeSuccess','Downtime added to this Capture.','success');
+  };
+
+  $('capQty').addEventListener('input',()=>{
+    const productionQty=Number($('capQty').value),total=scrapDraft.reduce((sum,x)=>sum+Number(x.quantity),0);
+    if(productionQty>0&&total>productionQty)showStatus('scrapSuccess',`Current Scrap total (${total}) exceeds Production Quantity (${productionQty}). Remove Scrap before saving.`,'error');
+    else if(total===0)clearStatus('scrapSuccess');
+  });
+
+  $('saveCaptureBtn').onclick=async()=>{
+    if(saving)return;
+    const success=$('captureSuccess');success.className='capture-success';success.textContent='';
+    if(!$('capConfirm').checked){showStatus('captureSuccess','Please confirm that the information is correct.','error');return;}
+    const operator=personnelCache.find(x=>x.id===$('capOperator').value),supervisor=personnelCache.find(x=>x.id===$('capSupervisor').value);
+    const productionQty=Number($('capQty').value),scrapTotal=scrapDraft.reduce((sum,x)=>sum+Number(x.quantity),0);
+    const payload={company_id:activeCompanyId,production_date:$('capDate').value,shift_id:$('capShift').value,lot_number:$('capLot').value.trim(),customer_id:customer.value,part_number_id:pn.value,machine_id:machine.value,operation_id:op.value,operator_id:operator?.id||null,supervisor_id:supervisor?.id||null,operator_name:operator?personnelFullName(operator):null,supervisor_name:supervisor?personnelFullName(supervisor):null,production_quantity:productionQty,confirmed:true,confirmed_at:new Date().toISOString()};
+    if(!payload.production_date||!payload.shift_id||!payload.lot_number||!payload.customer_id||!payload.part_number_id||!payload.machine_id||!payload.operation_id||productionQty<1){showStatus('captureSuccess','Please complete all required production information.','error');return;}
+    if(scrapTotal>productionQty){showStatus('captureSuccess',`Total Scrap (${scrapTotal}) cannot exceed Production Quantity (${productionQty}).`,'error');return;}
+
+    saving=true;$('saveCaptureBtn').disabled=true;$('saveCaptureBtn').textContent='SAVING...';
+    clearStatus('scrapSuccess');clearStatus('downtimeSuccess');
+    let captureId=null;
+    try{
+      const productionResult=await sb.from('production_captures').insert(payload).select('id').single();
+      if(productionResult.error)throw new Error(`Production: ${productionResult.error.message}`);
+      captureId=productionResult.data?.id;
+      if(!captureId)throw new Error('Production Capture was created but no Capture ID was returned.');
+
+      if(scrapDraft.length){
+        const scrapPayload=scrapDraft.map(x=>({production_capture_id:captureId,company_id:activeCompanyId,scrap_catalog_id:x.scrap_catalog_id,quantity:Number(x.quantity),reason:x.reason}));
+        const scrapResult=await sb.from('scrap_events').insert(scrapPayload);
+        if(scrapResult.error)throw new Error(`Scrap: ${scrapResult.error.message}`);
+      }
+      if(downtimeDraft.length){
+        const downtimePayload=downtimeDraft.map(x=>({production_capture_id:captureId,company_id:activeCompanyId,downtime_catalog_id:x.downtime_catalog_id,minutes:Number(x.minutes),reason:x.reason,event_type:x.event_type}));
+        const downtimeResult=await sb.from('downtime_events').insert(downtimePayload);
+        if(downtimeResult.error)throw new Error(`Downtime: ${downtimeResult.error.message}`);
+      }
+
+      showStatus('captureSuccess','Successfully Saved — Production, Scrap and Downtime are linked to the same Capture.','success');
+      resetCaptureForm();
+    }catch(err){
+      if(captureId){
+        const rollback=await sb.from('production_captures').delete().eq('id',captureId).eq('company_id',activeCompanyId);
+        if(rollback.error)showStatus('captureSuccess',`${err.message} Rollback also failed: ${rollback.error.message}`,'error');
+        else showStatus('captureSuccess',`${err.message} Nothing was kept; the Capture was rolled back.`,'error');
+      }else showStatus('captureSuccess',err.message||'Could not save Capture.','error');
+    }finally{
+      saving=false;$('saveCaptureBtn').disabled=false;$('saveCaptureBtn').textContent='SAVE';
+    }
+  };
+
+  renderScrapDraft();renderDowntimeDraft();
 }
 /* ===== GUARANTEED APPLICATION STARTUP — HOTFIX 2 ===== */
 window.addEventListener('DOMContentLoaded',()=>{

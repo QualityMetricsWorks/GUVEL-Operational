@@ -205,3 +205,17 @@
 .capture-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
 .capture-success{display:none;margin-top:10px;font-weight:800}.capture-success.show{display:block}.capture-success:not(.error){color:#006732}.capture-success.error{color:#ff3131}
 @media(max-width:900px){.capture-secondary-grid{grid-template-columns:1fr}}
+
+/* Phase 1.7.A Hotfix 5 — Capture transactional draft UX */
+.capture-save-panel{margin-top:18px;border-top:3px solid #0cc0df}
+.capture-final-save{min-width:180px;font-size:1rem;letter-spacing:.08em}
+.capture-final-save:disabled{opacity:.65;cursor:not-allowed}
+.capture-draft-list{margin-top:14px}
+.capture-draft-title{font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.capture-draft-empty{font-size:.86rem;opacity:.68;padding:10px 0}
+.capture-draft-table{overflow:auto;border:1px solid rgba(20,57,128,.14)}
+.capture-draft-table table{width:100%;border-collapse:collapse;min-width:520px}
+.capture-draft-table th,.capture-draft-table td{padding:9px 10px;border-bottom:1px solid rgba(20,57,128,.10);text-align:left;font-size:.84rem;vertical-align:top}
+.capture-draft-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.capture-draft-table tr:last-child td{border-bottom:0}
+.capture-remove{padding:5px 8px;font-size:.72rem}
