@@ -11,16 +11,38 @@ function localDateISO(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOf
 function dateOnly(iso){return new Date(`${iso}T00:00:00`);}
 function startOfWeek(d){const x=new Date(d);const day=x.getDay();const diff=day===0?-6:1-day;x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x;}
 function endOfWeek(d){const x=startOfWeek(d);x.setDate(x.getDate()+6);x.setHours(0,0,0,0);return x;}
+function dateKey(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+function shiftDays(d,n){const x=dateKey(d);x.setDate(x.getDate()+n);return x;}
 function resolvePeriod(period,anchor=new Date()){
-  const d=new Date(anchor);d.setHours(0,0,0,0);let from,to,compareFrom,compareTo,label=period;
-  if(period==='Today'){from=to=new Date(d);compareFrom=compareTo=new Date(d);compareFrom.setDate(compareFrom.getDate()-1);compareTo.setDate(compareTo.getDate()-1);}
-  else if(period==='This Week'){from=startOfWeek(d);to=endOfWeek(d);compareFrom=new Date(from);compareFrom.setDate(compareFrom.getDate()-7);compareTo=new Date(to);compareTo.setDate(compareTo.getDate()-7);}
-  else if(period==='This Year'){from=new Date(d.getFullYear(),0,1);to=new Date(d.getFullYear(),11,31);compareFrom=new Date(d.getFullYear()-1,0,1);compareTo=new Date(d.getFullYear()-1,11,31);}
-  else if(period==='Previous Day'){to=new Date(d);to.setDate(to.getDate()-1);from=new Date(to);compareFrom=new Date(from);compareFrom.setDate(compareFrom.getDate()-1);compareTo=new Date(to);compareTo.setDate(compareTo.getDate()-1);}
-  else if(period==='Previous Week'){to=startOfWeek(d);to.setDate(to.getDate()-1);from=new Date(to);from.setDate(from.getDate()-6);compareFrom=new Date(from);compareFrom.setDate(compareFrom.getDate()-7);compareTo=new Date(to);compareTo.setDate(compareTo.getDate()-7);}
-  else if(period==='Previous Month'){from=new Date(d.getFullYear(),d.getMonth()-1,1);to=new Date(d.getFullYear(),d.getMonth(),0);compareFrom=new Date(d.getFullYear(),d.getMonth()-2,1);compareTo=new Date(d.getFullYear(),d.getMonth()-1,0);}
-  else if(period==='Previous Year'){from=new Date(d.getFullYear()-1,0,1);to=new Date(d.getFullYear()-1,11,31);compareFrom=new Date(d.getFullYear()-2,0,1);compareTo=new Date(d.getFullYear()-2,11,31);}
-  else {from=new Date(d.getFullYear(),d.getMonth(),1);to=new Date(d.getFullYear(),d.getMonth()+1,0);compareFrom=new Date(d.getFullYear(),d.getMonth()-1,1);compareTo=new Date(d.getFullYear(),d.getMonth(),0);}
+  const d=dateKey(anchor);let from,to,compareFrom,compareTo,label=period;
+  if(period==='Today'){
+    from=new Date(d);to=new Date(d);
+    compareFrom=shiftDays(d,-1);compareTo=shiftDays(d,-1);
+  } else if(period==='This Week'){
+    from=startOfWeek(d);to=endOfWeek(d);
+    compareFrom=shiftDays(from,-7);compareTo=shiftDays(to,-7);
+  } else if(period==='This Month'){
+    from=new Date(d.getFullYear(),d.getMonth(),1);to=new Date(d.getFullYear(),d.getMonth()+1,0);
+    compareFrom=new Date(d.getFullYear(),d.getMonth()-1,1);compareTo=new Date(d.getFullYear(),d.getMonth(),0);
+  } else if(period==='This Year'){
+    from=new Date(d.getFullYear(),0,1);to=new Date(d.getFullYear(),11,31);
+    compareFrom=new Date(d.getFullYear()-1,0,1);compareTo=new Date(d.getFullYear()-1,11,31);
+  } else if(period==='Previous Day'){
+    from=shiftDays(d,-1);to=shiftDays(d,-1);
+    compareFrom=shiftDays(d,-2);compareTo=shiftDays(d,-2);
+  } else if(period==='Previous Week'){
+    const thisWeekStart=startOfWeek(d);to=shiftDays(thisWeekStart,-1);from=shiftDays(to,-6);
+    compareTo=shiftDays(to,-7);compareFrom=shiftDays(from,-7);
+  } else if(period==='Previous Month'){
+    from=new Date(d.getFullYear(),d.getMonth()-1,1);to=new Date(d.getFullYear(),d.getMonth(),0);
+    compareFrom=new Date(d.getFullYear(),d.getMonth()-2,1);compareTo=new Date(d.getFullYear(),d.getMonth()-1,0);
+  } else if(period==='Previous Year'){
+    from=new Date(d.getFullYear()-1,0,1);to=new Date(d.getFullYear()-1,11,31);
+    compareFrom=new Date(d.getFullYear()-2,0,1);compareTo=new Date(d.getFullYear()-2,11,31);
+  } else {
+    from=new Date(d.getFullYear(),d.getMonth(),1);to=new Date(d.getFullYear(),d.getMonth()+1,0);
+    compareFrom=new Date(d.getFullYear(),d.getMonth()-1,1);compareTo=new Date(d.getFullYear(),d.getMonth(),0);
+  }
   return {period,label,from:localDateISO(from),to:localDateISO(to),compareFrom:localDateISO(compareFrom),compareTo:localDateISO(compareTo)};
 }
 function dashboard(){const tabs=['General','Production','Quality','Performance'];return head('Dashboard','Connected operational visibility.')+`<div class="tabs dashboard-tabs">${tabs.map((x,i)=>`<button class="tab ${i===0?'active':''}" data-dashboard-tab="${x}">${x}</button>`).join('')}</div><div id="dashboardFilters" class="panel dashboard-filter-panel"><div class="section-title"><div><h2>Dashboard Filters</h2><p>Select a period or refine the analysis with operational filters.</p></div><div class="actions" style="margin-top:0"><button id="dashboardClear" class="secondary" type="button">Clear Filters</button><button id="dashboardRefresh" class="secondary" type="button">Refresh</button></div></div><div class="form-grid dashboard-filters"><div class="field period-field"><label>Period</label><select id="dashPeriod">${DASH_PERIODS.map(x=>`<option value="${x}" ${dashboardState.filters.period===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Date From</label><input id="dashFrom" type="date"></div><div class="field"><label>Date To</label><input id="dashTo" type="date"></div><div class="field"><label>Customer</label><select id="dashCustomer"><option value="">All Customers</option></select></div><div class="field"><label>Part Number</label><select id="dashPart"><option value="">All Part Numbers</option></select></div><div class="field"><label>Shift</label><select id="dashShift"><option value="">All Shifts</option></select></div><div class="field"><label>Machine</label><select id="dashMachine"><option value="">All Machines</option></select></div></div><div id="dashboardPeriodHint" class="dashboard-period-hint"></div><div id="dashboardStatus" class="status"></div></div><div id="dash"></div>`}
