@@ -1,8 +1,9 @@
 const cfg=window.GUVEL_CONFIG;let sb=null;
 if(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY) sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
 const navItems=['Dashboard','Capture','Customers','Part Numbers','Machines','Catalog','Registers','Personnel','Settings'];
+const navIcons={Dashboard:'▦',Capture:'＋',Customers:'♙','Part Numbers':'▤',Machines:'▥',Catalog:'◈',Registers:'☷',Personnel:'♙',Settings:'⚙'};
 const nav=document.getElementById('nav'),view=document.getElementById('view');let current='Dashboard';
-function renderNav(){nav.innerHTML=navItems.map(x=>`<button class="nav-item ${x===current?'active':''}" data-page="${x}">${x}</button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{current=b.dataset.page;renderNav();render();});}
+function renderNav(){nav.innerHTML=navItems.map(x=>`<button class="nav-item ${x===current?'active':''}" data-page="${x}"><span class="nav-icon" aria-hidden="true">${navIcons[x]||'•'}</span><span>${x}</span></button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{current=b.dataset.page;renderNav();render();});}
 function head(title,desc){return `<div class="page-head"><div><div class="eyebrow">GUVEL OPERATIONAL</div><h1>${title}</h1><p>${desc}</p></div></div>`}
 function metrics(names){return `<div class="grid">${names.map(n=>`<div class="card"><div class="label">${n}</div><div class="metric">—</div><div class="label">Awaiting data</div></div>`).join('')}</div>`}
 let dashboardDataLoaded=false;let dashboardLoadingPromise=null;let dashboardState={tab:'General',production:[],scrap:[],downtime:[],customers:[],parts:[],shifts:[],machines:[],cycleTimes:[],filters:{period:'This Month',from:'',to:'',customer:'',part:'',shift:'',machine:''},charts:{}};
@@ -385,7 +386,9 @@ function renderQualityCharts(cmp){
   const a=cmp.current;
   const pie=(key,id,map)=>{
     const es=[...map.values()].filter(x=>x.quantity>0).sort((x,y)=>y.quantity-x.quantity),labels=es.map(x=>x.label),vals=es.map(x=>x.quantity);
-    chartCreate(key,document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{label:DASH_CHART_META[key].label,data:vals,borderWidth:2,borderColor:'#fff'}]},options:{...chartBase({}),plugins:{legend:{position:'right',labels:{boxWidth:12}},tooltip:{callbacks:{label:(ctx)=>{const total=ctx.dataset.data.reduce((s,v)=>s+v,0)||1;const pct=(ctx.raw/total*100);return ` ${ctx.label}: ${Number(ctx.raw).toLocaleString()} (${pct.toFixed(1)}%)`;}}}}}});
+    const palette=['#0cc0df','#ff3131','#143980','#00a878','#f4b400','#7b61ff','#ef7d32','#21a179','#8c6bb1','#5b7083'];
+    const bg=vals.map((_,i)=>palette[i%palette.length]);
+    chartCreate(key,document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{label:DASH_CHART_META[key].label,data:vals,backgroundColor:bg,borderWidth:3,borderColor:'#ffffff',hoverOffset:8}]},options:{...chartBase({}),cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:12,padding:12,usePointStyle:true}},tooltip:{callbacks:{label:(ctx)=>{const total=ctx.dataset.data.reduce((s,v)=>s+v,0)||1;const pct=(ctx.raw/total*100);return ` ${ctx.label}: ${Number(ctx.raw).toLocaleString()} (${pct.toFixed(1)}%)`;}}}}}});
   };
   const pareto=(key,id,map)=>{
     const es=[...map.values()].filter(x=>x.quantity>0).sort((x,y)=>y.quantity-x.quantity),labels=es.map(x=>x.label),vals=es.map(x=>x.quantity);
@@ -440,7 +443,7 @@ function toggleDashboardFullscreen(){const app=document.getElementById('app');if
 document.addEventListener('fullscreenchange',()=>{document.documentElement.classList.toggle('dashboard-fullscreen',!!document.fullscreenElement);});
 function bindDashboard(){const fs=document.getElementById('dashboardFullscreen');if(fs)fs.onclick=toggleDashboardFullscreen;const c=document.getElementById('dashCustomer'),p=document.getElementById('dashPart'),s=document.getElementById('dashShift'),m=document.getElementById('dashMachine'),f=document.getElementById('dashFrom'),to=document.getElementById('dashTo'),period=document.getElementById('dashPeriod');document.querySelectorAll('[data-dashboard-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-dashboard-tab]').forEach(x=>x.classList.toggle('active',x===b));dashTab(b.dataset.dashboardTab);});const rerender=()=>dashboardState.tab==='Production'?renderProductionDashboard():dashboardState.tab==='Quality'?renderQualityDashboard():dashboardState.tab==='Downtime'?renderDowntimeDashboard():renderDashboardGeneral();const apply=()=>{dashboardState.filters={...dashboardState.filters,from:f.value,to:to.value};rerender();};[f,to,p,s,m].forEach(x=>x.onchange=apply);period.onchange=()=>{const r=resolvePeriod(period.value);dashboardState.filters={...dashboardState.filters,period:period.value,from:r.from,to:r.to};f.value=r.from;to.value=r.to;rerender();};c.onchange=()=>{dashboardState.filters.customer=c.value;dashboardState.filters.part='';populateDashboardFilters();rerender();};document.getElementById('dashboardClear').onclick=()=>{dashboardState.filters={period:'This Month',from:resolvePeriod('This Month').from,to:resolvePeriod('This Month').to,customer:'',part:'',shift:'',machine:''};populateDashboardFilters();rerender();};document.getElementById('dashboardRefresh').onclick=loadDashboardData;const initial=resolvePeriod(dashboardState.filters.period||'This Month');if(!dashboardState.filters.from)dashboardState.filters.from=initial.from;if(!dashboardState.filters.to)dashboardState.filters.to=initial.to;populateDashboardFilters();if(dashboardDataLoaded){renderActiveDashboard();}else{loadDashboardData();}}
 
-function capture(){return head('Capture','Register production, scrap and downtime as one controlled transaction.')+`<div class="notice">A production capture may contain multiple scrap events and multiple downtime events.</div><div class="panel section"><h2>Production</h2><div class="form-grid">${fields(['Part Number','Lot Number','Quantity','Date','Shift','Machine','Operation Number','Operator','Supervisor'])}</div></div><div class="panel"><h2>Scrap Events</h2><div class="form-grid">${fields(['Defect','Quantity','Reason'])}</div><div class="actions"><button>Add Scrap Event</button></div></div><div class="panel"><h2>Downtime Events</h2><div class="form-grid">${fields(['Downtime','Minutes','Reason','Type: Planned / Unplanned'])}</div><div class="actions"><button>Add Downtime Event</button></div></div><div class="panel"><label class="confirm"><input type="checkbox"> I confirm the information is correct.</label><div class="actions"><button class="primary">Confirm & Save Capture</button></div></div>`}
+function capture(){return head('Capture','Register production, scrap and downtime as one controlled transaction.')}
 function fields(a){return a.map(x=>`<div class="field"><label>${x}</label><input placeholder="${x}"></div>`).join('')}
 function table(title,cols){return head(title,'Foundation module — ready for Supabase CRUD.')+`<div class="panel"><div class="actions"><button class="primary">Add New</button></div></div><div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody><tr><td colspan="${cols.length}">No records yet.</td></tr></tbody></table></div>`}
 function shiftsPage(){return head('Settings — Shifts','Create and maintain production shifts. Excluded planned time is entered as total minutes.')+`<div class="panel section"><div class="section-title"><div><h2 id="shiftFormTitle">Add Shift</h2><p id="shiftFormDesc">All shifts are linked to the active company.</p></div><button id="cancelEdit" class="secondary" style="display:none">Cancel Edit</button></div><form id="shiftForm"><div class="form-grid"><div class="field"><label>Shift Code *</label><input id="shiftCode" required maxlength="50" placeholder="1"></div><div class="field"><label>Shift Name *</label><input id="shiftName" required maxlength="150" placeholder="First Shift"></div><div class="field"><label>Start *</label><input id="shiftStart" type="time" required></div><div class="field"><label>End *</label><input id="shiftEnd" type="time" required></div><div class="field"><label>Excluded Planned Time (minutes)</label><input id="shiftExcluded" type="number" min="0" step="0.01" value="0"></div></div><div class="actions"><button class="primary" type="submit" id="shiftSubmit">Save Shift</button></div><div id="shiftMessage" class="status"></div></form></div><div class="section-title"><div><h2>Registered Shifts</h2><p>Company-scoped master data.</p></div><button id="reloadShifts" class="secondary">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Start</th><th>End</th><th>Excluded Planned Time</th><th>Actions</th></tr></thead><tbody id="shiftsBody"><tr><td colspan="6">Loading shifts...</td></tr></tbody></table></div>`}
@@ -539,19 +542,27 @@ function bindCustomers(){
 
 
 function partNumbersPage(){
-  return head('Part Numbers','Create and maintain company-scoped part numbers. Customer linkage is required.')
-  +`<div class="panel section"><div class="section-title"><div><h2 id="pnFormTitle">Add Part Number</h2><p id="pnFormDesc">Required relationship: part_numbers.customer_id → customers.id.</p></div><button id="cancelPnEdit" class="secondary" style="display:none">Cancel Edit</button></div>
-  <form id="pnForm"><div class="form-grid">
-    <div class="field"><label>Customer *</label><select id="pnCustomer" required><option value="">Loading customers...</option></select></div>
-    <div class="field"><label>Part Number *</label><input id="pnNumber" required maxlength="120" placeholder="Part Number"></div>
-    <div class="field"><label>Description</label><input id="pnDescription" maxlength="500" placeholder="Description"></div>
-    <div class="field"><label>Cost per Piece</label><input id="pnCostPiece" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
-    <div class="field"><label>Scrap Cost</label><input id="pnScrapCost" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
-  </div><div class="actions"><button class="primary" type="submit" id="pnSubmit">Save Part Number</button></div><div id="pnMessage" class="status"></div></form></div>
-  <div class="section-title"><div><h2>Registered Part Numbers</h2><p>Each record remains scoped to the active company and linked to one customer.</p></div><button id="reloadPn" class="secondary">Refresh</button></div>
-  <div class="table-wrap"><table><thead><tr><th>Part Number</th><th>Customer</th><th>Description</th><th>Cost / Piece</th><th>Scrap Cost</th><th>Actions</th></tr></thead><tbody id="pnBody"><tr><td colspan="6">Loading part numbers...</td></tr></tbody></table></div>
-  <div class="panel section" id="pnProfilePanel" style="display:none"><div class="section-title"><div><h2>Part Number Profile</h2><p>Foundation for future Operations, Machines, Cycle Time and Defects.</p></div></div><div id="pnProfileContent"></div></div>`;
+  return head('Part Numbers','Manage part numbers and open their operational profile without leaving the workspace.')
+  +`<div class="master-detail-layout part-number-layout">
+    <aside class="master-list panel">
+      <div class="master-list-head"><div><div class="eyebrow">MASTER DATA</div><h2>Part Numbers</h2></div><button id="reloadPn" class="icon-refresh" title="Refresh">↻</button></div>
+      <div class="master-list-search"><input id="pnListSearch" type="search" placeholder="Search Part Number..."></div>
+      <div id="pnList" class="master-list-items"><div class="master-empty">Loading part numbers...</div></div>
+    </aside>
+    <section class="master-detail-content">
+      <div class="panel section pn-form-panel"><div class="section-title"><div><div class="eyebrow">PART NUMBER SETUP</div><h2 id="pnFormTitle">Add Part Number</h2><p id="pnFormDesc">Customer linkage is required.</p></div><button id="cancelPnEdit" class="secondary" style="display:none">Cancel Edit</button></div>
+      <form id="pnForm"><div class="form-grid">
+        <div class="field"><label>Customer *</label><select id="pnCustomer" required><option value="">Loading customers...</option></select></div>
+        <div class="field"><label>Part Number *</label><input id="pnNumber" required maxlength="120" placeholder="Part Number"></div>
+        <div class="field"><label>Description</label><input id="pnDescription" maxlength="500" placeholder="Description"></div>
+        <div class="field"><label>Cost per Piece</label><input id="pnCostPiece" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+        <div class="field"><label>Scrap Cost</label><input id="pnScrapCost" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+      </div><div class="actions"><button class="primary" type="submit" id="pnSubmit">Save Part Number</button></div><div id="pnMessage" class="status"></div></form></div>
+      <div class="panel section profile-workspace" id="pnProfilePanel"><div id="pnProfilePlaceholder" class="profile-placeholder"><div class="profile-placeholder-icon">◫</div><div><div class="eyebrow">PROFILE</div><h2>Select a Part Number</h2><p>Choose a Part Number from the list to open its operational profile.</p></div></div><div id="pnProfileContent"></div></div>
+    </section>
+  </div>`;
 }
+
 let editingPnId=null, pnCache=[], customerCache=[];
 function pnMsg(text,type=''){const el=document.getElementById('pnMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
 async function loadPnCustomers(selected=''){
@@ -563,29 +574,29 @@ async function loadPnCustomers(selected=''){
   if(selected)select.value=selected;
 }
 async function loadPartNumbers(){
-  const body=document.getElementById('pnBody');if(!body)return;
-  if(!sb||!activeCompanyId){body.innerHTML='<tr><td colspan="6">Supabase configuration or active company is missing.</td></tr>';return;}
-  body.innerHTML='<tr><td colspan="6">Loading part numbers...</td></tr>';
+  const list=document.getElementById('pnList');if(!list)return;
+  if(!sb||!activeCompanyId){list.innerHTML='<div class="master-empty">Supabase configuration or active company is missing.</div>';return;}
+  list.innerHTML='<div class="master-empty">Loading part numbers...</div>';
   const {data,error}=await sb.from('part_numbers').select('id,company_id,customer_id,part_number,description,piece_cost,scrap_cost,customers(id,code,name)').eq('company_id',activeCompanyId).order('part_number');
-  if(error){body.innerHTML=`<tr><td colspan="6">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
+  if(error){list.innerHTML=`<div class="master-empty error">${escapeHtml(error.message)}</div>`;return;}
   pnCache=data||[];
-  if(!pnCache.length){body.innerHTML='<tr><td colspan="6">No part numbers registered yet.</td></tr>';return;}
-  body.innerHTML=pnCache.map(p=>`<tr><td><button type="button" class="profile-entry profile-entry-pn openPn" data-id="${p.id}" title="Open Part Number Profile"><span>${escapeHtml(p.part_number)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(p.customers?`${p.customers.code} — ${p.customers.name}`:'')}</td><td>${escapeHtml(p.description||'')}</td><td>${formatMoney(p.piece_cost)}</td><td>${formatMoney(p.scrap_cost)}</td><td><button class="secondary editPn" data-id="${p.id}">Edit</button> <button class="danger deletePn" data-id="${p.id}">Delete</button></td></tr>`).join('');
-  document.querySelectorAll('.openPn').forEach(b=>{
-    b.onclick=(event)=>{ event.preventDefault(); event.stopPropagation(); openPnProfile(b.dataset.id); };
-  });
+  const renderList=(items)=>{list.innerHTML=items.length?items.map(p=>`<div class="master-item-row"><button type="button" class="master-item openPn" data-id="${p.id}"><span class="master-item-icon">▤</span><span class="master-item-copy"><strong>${escapeHtml(p.part_number)}</strong><small>${escapeHtml(p.customers?.code||'No Customer')}</small></span><span class="master-item-arrow">›</span></button><div class="master-item-actions"><button type="button" class="master-action editPn" data-id="${p.id}" title="Edit">✎</button><button type="button" class="master-action danger-text deletePn" data-id="${p.id}" title="Delete">×</button></div></div>`).join(''):'<div class="master-empty">No Part Numbers registered yet.</div>';document.querySelectorAll('.openPn').forEach(b=>b.onclick=()=>openPnProfile(b.dataset.id));document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));};
+  renderList(pnCache);
+  const search=document.getElementById('pnListSearch');if(search)search.oninput=()=>{const q=search.value.trim().toLowerCase();renderList(pnCache.filter(p=>`${p.part_number} ${p.description||''} ${p.customers?.code||''} ${p.customers?.name||''}`.toLowerCase().includes(q)));};
   document.querySelectorAll('.editPn').forEach(b=>b.onclick=()=>startPnEdit(pnCache.find(x=>x.id===b.dataset.id)));
-  document.querySelectorAll('.deletePn').forEach(b=>b.onclick=()=>deletePn(b.dataset.id));
 }
+
 function formatMoney(v){if(v===null||v===undefined||v==='')return '—';return Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6});}
 
 async function openPnProfile(id){
   const p=pnCache.find(x=>x.id===id);
   if(!p){alert('Part Number record was not found. Please refresh the list.');return;}
   window.pnProfileId=id;
+  const placeholder=document.getElementById('pnProfilePlaceholder'); if(placeholder)placeholder.style.display='none';
   const panel=document.getElementById('pnProfilePanel');
   const content=document.getElementById('pnProfileContent');
   if(!panel||!content){alert('Part Number Profile container is unavailable.');return;}
+  panel.style.display='block';
 
   const barcodeSvg=(raw)=>{
     const value=String(raw||'').toUpperCase();
@@ -639,7 +650,7 @@ async function openPnProfile(id){
     <div id="pnTabDefects" style="display:none"></div>`;
 
   panel.style.display='block';
-  document.getElementById('closePnProfile').onclick=()=>panel.style.display='none';
+  document.getElementById('closePnProfile').onclick=()=>{panel.style.display='none';const ph=document.getElementById('pnProfilePlaceholder');if(ph)ph.style.display='flex';};
   document.querySelectorAll('[data-pntab]').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('[data-pntab]').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
@@ -691,6 +702,7 @@ async function loadPnProfileDefects(partId){
 function closeMachineProfile(){
   const panel=document.getElementById('machineProfilePanel');
   if(panel)panel.style.display='none';
+  const placeholder=document.getElementById('machineProfilePlaceholder'); if(placeholder)placeholder.style.display='flex';
 }
 function startPnEdit(p){
   editingPnId=p.id;
@@ -748,23 +760,21 @@ function bindPartNumbers(){
 
 
 function machinesPage(){
-  return head('Machines','Create company-scoped machines. Linked Part Numbers are viewed here and managed from the Part Number Profile.')
-  +`<div class="notice">Architecture preserved: machines.company_id → companies.id. Links are stored in part_number_machines; neither machines nor part_numbers are duplicated.</div>
-  <div class="panel section">
-    <div class="section-title"><div><h2 id="machineFormTitle">Add Machine</h2><p id="machineFormDesc">A machine belongs to the active company. Part Number links are managed exclusively from the Part Number Profile.</p></div><button id="cancelMachineEdit" class="secondary" style="display:none">Cancel Edit</button></div>
-    <form id="machineForm"><div class="form-grid">
-      <div class="field"><label>Brand</label><input id="machineBrand" maxlength="120" placeholder="Brand"></div>
-      <div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div>
-      <div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div>
-    </div>
-    <div class="notice">Part Number links are managed exclusively from the Part Number Profile. This module only creates and maintains machine master data.</div>
-    <div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div>
-    </form>
-  </div>
-  <div class="section-title"><div><h2>Registered Machines</h2><p>Machine master data is company-scoped. Linked Part Numbers are counted from part_number_machines.</p></div><button id="reloadMachines" class="secondary">Refresh</button></div>
-  <div class="table-wrap"><table><thead><tr><th>Brand</th><th>Code</th><th>Name</th><th>Linked Part Numbers</th><th>Actions</th></tr></thead><tbody id="machinesBody"><tr><td colspan="5">Loading machines...</td></tr></tbody></table></div>
-  <div class="panel section" id="machineProfilePanel" style="display:none"><div class="section-title"><div><h2>Machine Profile</h2><p>Machine master data and linked Part Numbers.</p></div><button id="closeMachineProfile" class="profile-close" type="button" aria-label="Close Machine Profile" title="Close">×</button></div><div id="machineProfileContent"></div></div>`;
+  return head('Machines','Manage machines and open their operational profile without leaving the workspace.')
+  +`<div class="master-detail-layout machine-layout">
+    <aside class="master-list panel">
+      <div class="master-list-head"><div><div class="eyebrow">MASTER DATA</div><h2>Machines</h2></div><button id="reloadMachines" class="icon-refresh" title="Refresh">↻</button></div>
+      <div class="master-list-search"><input id="machineListSearch" type="search" placeholder="Search Machine..."></div>
+      <div id="machinesList" class="master-list-items"><div class="master-empty">Loading machines...</div></div>
+    </aside>
+    <section class="master-detail-content">
+      <div class="panel section machine-form-panel"><div class="section-title"><div><div class="eyebrow">MACHINE SETUP</div><h2 id="machineFormTitle">Add Machine</h2><p id="machineFormDesc">A machine belongs to the active company.</p></div><button id="cancelMachineEdit" class="secondary" style="display:none">Cancel Edit</button></div>
+      <form id="machineForm"><div class="form-grid"><div class="field"><label>Brand</label><input id="machineBrand" maxlength="120" placeholder="Brand"></div><div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div><div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div></div><div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div></form></div>
+      <div class="panel section profile-workspace" id="machineProfilePanel"><div id="machineProfilePlaceholder" class="profile-placeholder"><div class="profile-placeholder-icon">▥</div><div><div class="eyebrow">PROFILE</div><h2>Select a Machine</h2><p>Choose a Machine from the list to open its operational profile.</p></div></div><div id="machineProfileContent"></div></div>
+    </section>
+  </div>`;
 }
+
 let editingMachineId=null, machineCache=[], machinePnCache=[];
 function machineMsg(text,type=''){const el=document.getElementById('machineMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
 function escAttr(v){return escapeHtml(v||'').replace(/"/g,'&quot;');}
@@ -830,23 +840,18 @@ function bindMachinePnMultiSelect(){
 
 function selectedMachinePnIds(){return Array.from(document.querySelectorAll('input[name="machinePn"]:checked')).map(x=>x.value);}
 async function loadMachines(){
-  const body=document.getElementById('machinesBody');if(!body)return;
-  if(!sb||!activeCompanyId){body.innerHTML='<tr><td colspan="5">Supabase configuration or active company is missing.</td></tr>';return;}
-  body.innerHTML='<tr><td colspan="5">Loading machines...</td></tr>';
+  const list=document.getElementById('machinesList');if(!list)return;
+  if(!sb||!activeCompanyId){list.innerHTML='<div class="master-empty">Supabase configuration or active company is missing.</div>';return;}
+  list.innerHTML='<div class="master-empty">Loading machines...</div>';
   const {data,error}=await sb.from('machines').select('id,company_id,brand,code,name,created_at,part_number_machines(part_number_id,part_numbers(id,part_number,description))').eq('company_id',activeCompanyId).order('code');
-  if(error){body.innerHTML=`<tr><td colspan="5">Error: ${escapeHtml(error.message)}</td></tr>`;return;}
+  if(error){list.innerHTML=`<div class="master-empty error">${escapeHtml(error.message)}</div>`;return;}
   machineCache=data||[];
-  if(!machineCache.length){body.innerHTML='<tr><td colspan="5">No machines registered yet.</td></tr>';return;}
-  body.innerHTML=machineCache.map(m=>{
-    const links=Array.isArray(m.part_number_machines)?m.part_number_machines:[];
-    return `<tr><td>${escapeHtml(m.brand||'—')}</td><td><button type="button" class="profile-entry profile-entry-machine openMachine" data-id="${m.id}" title="Open Machine Profile"><span>${escapeHtml(m.code)}</span><small>OPEN PROFILE →</small></button></td><td>${escapeHtml(m.name)}</td><td>${links.length}</td><td><button class="secondary editMachine" data-id="${m.id}">Edit</button> <button class="danger deleteMachine" data-id="${m.id}">Delete</button></td></tr>`;
-  }).join('');
-  document.querySelectorAll('.openMachine').forEach(b=>{
-    b.onclick=(event)=>{ event.preventDefault(); event.stopPropagation(); openMachineProfile(b.dataset.id); };
-  });
+  const renderList=(items)=>{list.innerHTML=items.length?items.map(m=>`<div class="master-item-row"><button type="button" class="master-item openMachine" data-id="${m.id}"><span class="master-item-icon">▥</span><span class="master-item-copy"><strong>${escapeHtml(m.code)}</strong><small>${escapeHtml(m.name||'')}</small></span><span class="master-item-arrow">›</span></button><div class="master-item-actions"><button type="button" class="master-action editMachine" data-id="${m.id}" title="Edit">✎</button><button type="button" class="master-action danger-text deleteMachine" data-id="${m.id}" title="Delete">×</button></div></div>`).join(''):'<div class="master-empty">No machines registered yet.</div>';document.querySelectorAll('.openMachine').forEach(b=>b.onclick=()=>openMachineProfile(b.dataset.id));document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));document.querySelectorAll('.deleteMachine').forEach(b=>b.onclick=()=>deleteMachine(b.dataset.id));};
+  renderList(machineCache);
+  const search=document.getElementById('machineListSearch');if(search)search.oninput=()=>{const q=search.value.trim().toLowerCase();renderList(machineCache.filter(m=>`${m.code} ${m.name||''} ${m.brand||''}`.toLowerCase().includes(q)));};
   document.querySelectorAll('.editMachine').forEach(b=>b.onclick=()=>startMachineEdit(machineCache.find(x=>x.id===b.dataset.id)));
-  document.querySelectorAll('.deleteMachine').forEach(b=>b.onclick=()=>deleteMachine(b.dataset.id));
 }
+
 function openMachineProfile(id){
   const m=machineCache.find(x=>x.id===id);if(!m)return;
   const links=(m.part_number_machines||[]).map(x=>x.part_numbers).filter(Boolean);
@@ -867,6 +872,7 @@ function openMachineProfile(id){
 function closeMachineProfile(){
   const panel=document.getElementById('machineProfilePanel');
   if(panel)panel.style.display='none';
+  const placeholder=document.getElementById('machineProfilePlaceholder'); if(placeholder)placeholder.style.display='flex';
 }
 async function startMachineEdit(m){
   editingMachineId=m.id;
@@ -1239,10 +1245,9 @@ async function renderCaptureFoundation(){
   let downtimeDraft=[];
   let saving=false;
 
-  view.innerHTML=`<section class="page-header"><div><h1>Capture</h1><p>Production, Scrap & Downtime — one controlled transaction</p></div></section>
-  <div class="panel phase17-notice"><strong>One Capture = Production + 0..N Scrap Events + 0..N Downtime Events.</strong><br>Use <b>Add Scrap</b> and <b>Add Downtime</b> to build the record. Nothing is saved until the single <b>SAVE</b> button at the bottom is pressed.</div>
+  view.innerHTML=`<section class="page-head capture-page-head"><div><div class="eyebrow">GUVEL OPERATIONAL</div><h1>Capture</h1><p>Production, Scrap & Downtime</p></div><div class="capture-live-badge"><span></span>Ready to capture</div></section>
 
-  <div class="panel"><h3>Production Information</h3><div class="form-grid">
+  <div class="panel capture-production-panel"><div class="capture-section-head"><div><div class="eyebrow">01 · PRODUCTION</div><h2>Production Information</h2></div><span class="capture-required">Required fields *</span></div><div class="form-grid capture-production-grid">
   <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
   <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
   <label>Customer<select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
@@ -1255,8 +1260,8 @@ async function renderCaptureFoundation(){
   <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
   </div></div>
 
-  <div class="capture-secondary-grid">
-    <div class="panel"><div class="section-title"><div><h3>Scrap</h3><p>Add one or more scrap events to this Capture.</p></div></div>
+  <div class="capture-secondary-grid capture-event-grid">
+    <div class="panel capture-event-panel"><div class="capture-section-head"><div><div class="eyebrow">02 · QUALITY LOSS</div><h3>Scrap</h3></div><span class="capture-count-badge" id="scrapCountBadge">0</span></div>
       <div class="form-grid">
         <label>Defect<select id="capScrapDefect"><option value="">Select Part Number first</option></select></label>
         <label>Quantity<input id="capScrapQty" type="number" min="1"></label>
@@ -1267,7 +1272,7 @@ async function renderCaptureFoundation(){
       <div id="scrapSuccess" class="capture-success" role="status" aria-live="polite"></div>
     </div>
 
-    <div class="panel"><div class="section-title"><div><h3>Downtime</h3><p>Add one or more downtime events to this Capture.</p></div></div>
+    <div class="panel capture-event-panel"><div class="capture-section-head"><div><div class="eyebrow">03 · TIME LOSS</div><h3>Downtime</h3></div><span class="capture-count-badge" id="downtimeCountBadge">0</span></div>
       <div class="form-grid">
         <label>Downtime<select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></label>
         <label>Minutes<input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></label>
@@ -1291,13 +1296,13 @@ async function renderCaptureFoundation(){
   function clearStatus(id){const el=$(id);if(el){el.textContent='';el.className='capture-success';}}
   function showStatus(id,text,type='success'){const el=$(id);if(!el)return;el.textContent=text;el.className='capture-success show'+(type==='error'?' error':'');}
   function renderScrapDraft(){
-    const host=$('scrapDraftList');
+    const host=$('scrapDraftList'); const badge=$('scrapCountBadge'); if(badge)badge.textContent=String(scrapDraft.length);
     if(!scrapDraft.length){host.innerHTML='<div class="capture-draft-empty">No Scrap added to this Capture.</div>';return;}
     host.innerHTML=`<div class="capture-draft-title">Added Scrap (${scrapDraft.length})</div><div class="capture-draft-table"><table><thead><tr><th>Defect</th><th>Qty</th><th>Reason</th><th></th></tr></thead><tbody>${scrapDraft.map((x,i)=>`<tr><td>${escapeHtml(x.code)} — ${escapeHtml(x.defect)}</td><td>${x.quantity}</td><td>${escapeHtml(x.reason||'—')}</td><td><button class="danger capture-remove" type="button" data-remove-scrap="${i}" aria-label="Remove scrap">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
     host.querySelectorAll('[data-remove-scrap]').forEach(b=>b.onclick=()=>{scrapDraft.splice(Number(b.dataset.removeScrap),1);renderScrapDraft();clearStatus('scrapSuccess');});
   }
   function renderDowntimeDraft(){
-    const host=$('downtimeDraftList');
+    const host=$('downtimeDraftList'); const badge=$('downtimeCountBadge'); if(badge)badge.textContent=String(downtimeDraft.length);
     if(!downtimeDraft.length){host.innerHTML='<div class="capture-draft-empty">No Downtime added to this Capture.</div>';return;}
     host.innerHTML=`<div class="capture-draft-title">Added Downtime (${downtimeDraft.length})</div><div class="capture-draft-table"><table><thead><tr><th>Downtime</th><th>Min.</th><th>Type</th><th>Reason</th><th></th></tr></thead><tbody>${downtimeDraft.map((x,i)=>`<tr><td>${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</td><td>${x.minutes}</td><td>${escapeHtml(x.event_type)}</td><td>${escapeHtml(x.reason||'—')}</td><td><button class="danger capture-remove" type="button" data-remove-downtime="${i}" aria-label="Remove downtime">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
     host.querySelectorAll('[data-remove-downtime]').forEach(b=>b.onclick=()=>{downtimeDraft.splice(Number(b.dataset.removeDowntime),1);renderDowntimeDraft();clearStatus('downtimeSuccess');});
