@@ -333,3 +333,6 @@
 @media(max-width:1150px){.production-kpis{grid-template-columns:repeat(3,minmax(160px,1fr))}}
 @media(max-width:720px){.production-kpis{grid-template-columns:repeat(2,minmax(140px,1fr))}.production-chart-grid .chart-wrap{height:220px}}
 @media(max-width:460px){.production-kpis{grid-template-columns:1fr}}
+
+/* Phase 1.9.D — Quality Dashboard */
+.quality-kpis .card:before{background:#ff3131}.quality-kpi-yield:before{background:#0cc0df!important}.quality-chart-grid .chart-panel{min-height:320px}.quality-chart-grid .chart-wrap{height:245px}.quality-kpi-cost .metric{font-size:27px}.quality-kpi-copq:before{background:#f0a24b!important}
