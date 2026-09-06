@@ -118,3 +118,8 @@ Fixed Dashboard KPI and chart configuration modal controls. The configuration ov
 ## Phase 1.9.B Hotfix 4
 
 Corrected KPI and chart configuration controls using direct event binding after dynamic modal creation. Save, Cancel, X and Reset are attached to the newly created modal controls. Added explicit error handling for missing controls. Cache-busting updated to `app.js?v=1.9B-hotfix4` so GitHub Pages/browser cache cannot continue serving the prior Hotfix 2 JavaScript. No database, SQL, RLS, relationship, Capture, or Registers changes.
+
+
+## Phase 1.9.B Hotfix 5
+
+Corrected the six General Dashboard KPI comparison displays. Ratio KPIs (OEE, Scrap, Yield, COPQ) now compare the displayed percentage values by direct subtraction, so 69.2% vs 92.8% displays `↓ -23.6%`. Production and PPMs retain relative percentage comparison. No changes to KPI/chart configuration controls, colors, thresholds, charts, database, SQL, RLS, Capture, or Registers. Cache-busting updated to `app.js?v=1.9B-hotfix5`.
