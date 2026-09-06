@@ -126,40 +126,57 @@ function buildOeeMetrics(d){
     const q=Number(r.production_quantity||0), sq=d.scrapByCapture.get(r.id)||0, gd=Math.max(0,q-sq);
     const dt=d.downByCapture.get(r.id)||{planned:0,unplanned:0,unknown:0,total:0};
     const sh=r.shifts, shiftSec=shiftDurationSeconds(sh), excluded=Number(sh?.excluded_planned_minutes||0)*60;
-    const plannedSec=shiftSec==null?null:Math.max(0,shiftSec-excluded), cycle=Number(r.operations?.ideal_cycle_time_seconds||0);
+    const plannedSec=shiftSec==null?null:Math.max(0,shiftSec-excluded);
+    const cycle=Number(r.operations?.ideal_cycle_time_seconds||0);
+    const hasCycle=Number.isFinite(cycle)&&cycle>0;
+    const hasTiming=plannedSec!=null&&plannedSec>0;
     const dayKey=String(r.production_date||'').slice(0,10)||'No Date';
     const key=`${dayKey}|${r.shift_id||'unknown-shift'}|${r.machine_id||'unknown-machine'}`;
-    const g=add(groups,key,{dayKey,shiftId:r.shift_id||'unknown-shift',machineId:r.machine_id||'unknown-machine',planned:0,unplanned:0,plannedDowntime:0,unknown:0,production:0,scrap:0,good:0,perfNumerator:0,hasInvalidTiming:false});
-    if(g.planned===0&&plannedSec!=null)g.planned=plannedSec;
+    const g=add(groups,key,{dayKey,shiftId:r.shift_id||'unknown-shift',machineId:r.machine_id||'unknown-machine',planned:0,unplanned:0,plannedDowntime:0,unknown:0,production:0,scrap:0,good:0,perfNumerator:0,missingCycleProduction:0,missingCycleCaptures:0,invalidTimingCaptures:0});
+    if(g.planned===0&&hasTiming)g.planned=plannedSec;
+    if(!hasTiming)g.invalidTimingCaptures++;
     g.unplanned+=dt.unplanned; g.plannedDowntime+=dt.planned; g.unknown+=dt.unknown;
     g.production+=q; g.scrap+=sq; g.good+=gd;
-    if(cycle>0)g.perfNumerator+=cycle*q; else g.hasInvalidTiming=true;
+    if(hasCycle)g.perfNumerator+=cycle*q; else {g.missingCycleCaptures++;g.missingCycleProduction+=q;}
   }
   const calc=x=>{
-    const operating=Math.max(0,(x.planned||0)-(x.unplanned||0)*60);
-    const availability=x.planned>0?Math.min(1,operating/x.planned):null;
-    const performanceRaw=operating>0&&x.perfNumerator>0?x.perfNumerator/operating:null;
-    const performance=performanceRaw==null?null:Math.min(1,performanceRaw);
+    const operating=x.planned>0?Math.max(0,x.planned-(x.unplanned||0)*60):null;
+    const availability=x.planned>0&&x.unknown===0?Math.min(1,operating/x.planned):null;
+    const performanceRaw=operating>0&&x.production>0&&x.missingCycleProduction===0?x.perfNumerator/operating:null;
+    const performance=performanceRaw==null?null:Math.min(1,Math.max(0,performanceRaw));
     const quality=x.production>0?Math.min(1,Math.max(0,x.good/x.production)):null;
-    const oee=availability!=null&&performance!=null&&quality!=null?Math.min(1,availability*performance*quality):null;
-    const actualCycle=x.production>0?operating/x.production:null;
-    return {...x,operating,availability,performance,performanceRaw,quality,oee,actualCycle,valid: x.planned>0&&x.unknown===0&&!x.hasInvalidTiming&&x.production>0&&x.perfNumerator>0};
+    const oee=availability!=null&&performance!=null&&quality!=null?Math.min(1,Math.max(0,availability*performance*quality)):null;
+    const actualCycle=x.production>0&&operating!=null?operating/x.production:null;
+    const valid=x.planned>0&&x.unknown===0&&x.invalidTimingCaptures===0&&x.missingCycleProduction===0&&x.production>0;
+    return {...x,operating,availability,performance,performanceRaw,quality,oee,actualCycle,valid};
   };
   const groupsCalc=[...groups.values()].map(calc);
   const daily=new Map(),machine=new Map(),shift=new Map();
   for(const g of groupsCalc){
-    const addBreak=(map,key)=>{let x=map.get(key);if(!x){x={production:0,scrap:0,good:0,planned:0,operating:0,perfNumerator:0,unknown:0,unplanned:0,validGroups:0};map.set(key,x);}return x;};
-    for(const [map,key] of [[daily,g.dayKey],[machine,g.machineId],[shift,g.shiftId]]){const x=addBreak(map,key);x.production+=g.production;x.scrap+=g.scrap;x.good+=g.good;x.planned+=g.planned;x.operating+=g.operating;x.perfNumerator+=g.perfNumerator;x.unknown+=g.unknown;x.unplanned+=g.unplanned;if(g.valid)x.validGroups++;}
+    const addBreak=(map,key)=>{let x=map.get(key);if(!x){x={production:0,scrap:0,good:0,planned:0,operating:0,perfNumerator:0,unknown:0,unplanned:0,missingCycleProduction:0,missingCycleCaptures:0,invalidTimingCaptures:0,validGroups:0};map.set(key,x);}return x;};
+    for(const [map,key] of [[daily,g.dayKey],[machine,g.machineId],[shift,g.shiftId]]){
+      const x=addBreak(map,key);
+      x.production+=g.production;x.scrap+=g.scrap;x.good+=g.good;x.planned+=g.planned;x.operating+=(g.operating||0);
+      x.perfNumerator+=g.perfNumerator;x.unknown+=g.unknown;x.unplanned+=g.unplanned;
+      x.missingCycleProduction+=g.missingCycleProduction;x.missingCycleCaptures+=g.missingCycleCaptures;x.invalidTimingCaptures+=g.invalidTimingCaptures;
+      if(g.valid)x.validGroups++;
+    }
   }
   const breakdownCalc=map=>new Map([...map.entries()].map(([k,x])=>[k,calc(x)]));
-  const validGroups=groupsCalc.filter(g=>g.valid);
-  const total={production:groupsCalc.reduce((a,g)=>a+g.production,0),scrap:groupsCalc.reduce((a,g)=>a+g.scrap,0),good:groupsCalc.reduce((a,g)=>a+g.good,0),planned:validGroups.reduce((a,g)=>a+g.planned,0),operating:validGroups.reduce((a,g)=>a+g.operating,0),perfNumerator:validGroups.reduce((a,g)=>a+g.perfNumerator,0),plannedDowntime:groupsCalc.reduce((a,g)=>a+g.plannedDowntime,0),unplannedDowntime:groupsCalc.reduce((a,g)=>a+g.unplanned,0),valid:validGroups.length,invalid:groupsCalc.length-validGroups.length};
+  const timingGroups=groupsCalc.filter(g=>g.planned>0);
+  const total={
+    production:groupsCalc.reduce((a,g)=>a+g.production,0),scrap:groupsCalc.reduce((a,g)=>a+g.scrap,0),good:groupsCalc.reduce((a,g)=>a+g.good,0),
+    planned:timingGroups.reduce((a,g)=>a+g.planned,0),operating:timingGroups.reduce((a,g)=>a+(g.operating||0),0),unplanned:timingGroups.reduce((a,g)=>a+g.unplanned,0),
+    perfNumerator:groupsCalc.reduce((a,g)=>a+g.perfNumerator,0),plannedDowntime:groupsCalc.reduce((a,g)=>a+g.plannedDowntime,0),unplannedDowntime:groupsCalc.reduce((a,g)=>a+g.unplanned,0),
+    unknown:groupsCalc.reduce((a,g)=>a+g.unknown,0),missingCycleProduction:groupsCalc.reduce((a,g)=>a+g.missingCycleProduction,0),missingCycleCaptures:groupsCalc.reduce((a,g)=>a+g.missingCycleCaptures,0),invalidTimingCaptures:groupsCalc.reduce((a,g)=>a+g.invalidTimingCaptures,0),
+    valid:groupsCalc.filter(g=>g.valid).length,invalid:groupsCalc.filter(g=>!g.valid).length
+  };
   return {...total,...calc(total),daily:breakdownCalc(daily),machine:breakdownCalc(machine),shift:breakdownCalc(shift),groups:groupsCalc};
 }
 function prepareOeeData(d){
   const scrapByCapture=new Map(),downByCapture=new Map();
   for(const r of d.scrap)scrapByCapture.set(r.production_capture_id,(scrapByCapture.get(r.production_capture_id)||0)+Number(r.quantity||0));
-  for(const r of d.downtime){const a=downByCapture.get(r.production_capture_id)||{planned:0,unplanned:0,unknown:0,total:0};const m=Number(r.minutes||0);a.total+=m;const type=String(r.event_type||'').toLowerCase();if(type==='planned')a.planned+=m;else if(type==='unplanned')a.unplanned+=m;else a.unknown+=m;downByCapture.set(r.production_capture_id,a);}
+  for(const r of d.downtime){const a=downByCapture.get(r.production_capture_id)||{planned:0,unplanned:0,unknown:0,total:0};const m=Number(r.minutes||0);a.total+=m;const type=String(r.event_type||'').trim().toLowerCase();if(type==='planned')a.planned+=m;else if(type==='unplanned')a.unplanned+=m;else a.unknown+=m;downByCapture.set(r.production_capture_id,a);}
   return {...d,scrapByCapture,downByCapture};
 }
 function productionDashboardAggregate(rangeOverride=null){
@@ -173,7 +190,7 @@ function prodDeltaMarkup(key,current,previous,higherIsBetter,label){return kpiDe
 function renderProductionDashboard(){
   const box=document.getElementById('dashboardProduction');if(!box)return;const cmp=productionDashboardComparison(),a=cmp.current,prev=cmp.previous,p=cmp.period;
   if(!a.d.prod.length){box.innerHTML='<div class="panel dashboard-empty"><div class="eyebrow">PRODUCTION</div><h2>No Data</h2><p>No production captures match the selected Dashboard filters.</p></div>';dashboardStatus('No Data in the selected filter scope.');return;}
-  const warning=a.invalid?`<div class="notice dashboard-data-note">${a.invalid} capture(s) are excluded from complete OEE component calculations because timing, cycle-time or downtime classification data is incomplete.</div>`:'';
+  const warning=(a.invalid||a.unknown||a.missingCycleProduction>0||a.invalidTimingCaptures>0)?`<div class="notice dashboard-data-note">${a.unknown?`${a.unknown} downtime event(s) have an unknown classification. `:''}${a.missingCycleProduction>0?`${a.missingCycleProduction.toLocaleString()} production piece(s) belong to captures without a valid ideal cycle time; Performance and OEE are N/A until the operation cycle time is completed. `:''}${a.invalidTimingCaptures>0?`${a.invalidTimingCaptures} capture(s) have incomplete shift timing and cannot contribute to Availability. `:''}</div>`:'';
   box.innerHTML=`${warning}<div class="dashboard-overview-head"><div><div class="eyebrow">PRODUCTION OVERVIEW</div><h2>${escapeHtml(p.label)}</h2><p>${p.from} → ${p.to} · Compared with ${p.compareFrom} → ${p.compareTo}</p></div><div class="dashboard-live-badge"><span></span>Production intelligence</div></div>
   <div class="grid dashboard-kpis production-kpis">
     <div class="card kpi-card prod-kpi-oee"><div class="kpi-top"><div class="label">OEE</div>${kpiGear('prod_oee')}</div><div class="metric">${dashPct(a.oee)}</div>${prodDeltaMarkup('prod_oee',a.oee,prev.oee,true,'Previous Period')}</div>
