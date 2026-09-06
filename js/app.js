@@ -127,12 +127,10 @@ const QUALITY_KPI_META={
   quality_yield:{label:'Yield',unit:'%',formula:'Yield = Good Pieces ÷ Total Production Pieces'}
 };
 const QUALITY_CHART_META={
-  quality_trend:{label:'Scrap Trend',unit:'%'},
+  quality_defect:{label:'Scrap by Defect',unit:'pieces'},
   quality_part:{label:'Scrap by Part Number',unit:'pieces'},
-  quality_defect:{label:'Defect Pareto',unit:'pieces'},
-  quality_category:{label:'Scrap by Category',unit:'pieces'},
-  quality_operation:{label:'Scrap by Operation',unit:'pieces'},
-  quality_cost:{label:'Scrap Cost by Part Number',unit:'currency'}
+  quality_defect_pareto:{label:'Pareto by Defect',unit:'pieces'},
+  quality_part_pareto:{label:'Pareto by Part Number',unit:'pieces'}
 };
 Object.assign(DASH_KPI_META,QUALITY_KPI_META,Object.fromEntries(Object.entries(QUALITY_KPI_META).map(([k,v])=>[k,v])));
 Object.assign(DASH_CHART_META,QUALITY_CHART_META,Object.fromEntries(Object.entries(QUALITY_CHART_META).map(([k,v])=>[k,v])));
@@ -244,11 +242,13 @@ function renderProductionCharts(cmp){if(!window.Chart){dashboardStatus('Chart li
 function qualityAggregate(rangeOverride=null){
   const base=dashboardFiltered(rangeOverride), prod=base.prod;
   const scrapRows=base.scrap||[];
-  const scrapByCapture=new Map(); for(const e of scrapRows)scrapByCapture.set(e.production_capture_id,(scrapByCapture.get(e.production_capture_id)||0)+Number(e.quantity||0));
+  const scrapByCapture=new Map();
+  for(const e of scrapRows)scrapByCapture.set(e.production_capture_id,(scrapByCapture.get(e.production_capture_id)||0)+Number(e.quantity||0));
+  const prodByCapture=new Map(prod.map(r=>[r.id,r]));
   let production=0,scrap=0,scrapCost=0,goodCost=0,poorCost=0;
-  const byPart=new Map(),byDefect=new Map(),byCategory=new Map(),byOperation=new Map(),byDay=new Map(),byPartCost=new Map();
+  const byPart=new Map(),byDefect=new Map(),byPartDefect=new Map();
   const partName=id=>dashboardState.parts.find(x=>x.id===id)?.part_number||'Unknown Part Number';
-  const add=(map,key,label)=>{let x=map.get(key);if(!x){x={label,quantity:0,cost:0};map.set(key,x);}return x;};
+  const add=(map,key,label)=>{let x=map.get(key);if(!x){x={id:key,label,quantity:0,cost:0};map.set(key,x);}return x;};
   for(const r of prod){
     const q=Number(r.production_quantity||0); production+=q;
     const pieceCost=Number(r.part_numbers?.piece_cost||0), scrapUnitCost=Number(r.part_numbers?.scrap_cost||0);
@@ -256,22 +256,20 @@ function qualityAggregate(rangeOverride=null){
     const good=Math.max(0,q-sq), badCost=sq*scrapUnitCost;
     goodCost+=good*pieceCost; poorCost+=badCost; scrapCost+=badCost;
     const pn=partName(r.part_number_id), ps=add(byPart,r.part_number_id,pn); ps.quantity+=sq; ps.cost+=badCost;
-    const day=String(r.production_date||'').slice(0,10)||'No Date'; const ds=add(byDay,day,day); ds.quantity+=sq;
-    const pc=byPartCost.get(r.part_number_id)||{label:pn,cost:0};pc.cost+=badCost;byPartCost.set(r.part_number_id,pc);
   }
   for(const x of scrapRows){
-    const cat=x.scrap_catalog||{}, defect=cat.defect||'Unknown Defect', category=cat.category||'Unknown Category';
-    const op=cat.operations?`${cat.operations.operation_number||''}${cat.operations.operation_name?' — '+cat.operations.operation_name:''}`.trim():(cat.operation_id?'Unknown Operation':'Unassigned Operation');
-    const d=add(byDefect,cat.code||defect,defect);d.quantity+=Number(x.quantity||0);
-    const c=add(byCategory,category,category);c.quantity+=Number(x.quantity||0);
-    const o=add(byOperation,cat.operation_id||'unknown-operation',op);o.quantity+=Number(x.quantity||0);
+    const cat=x.scrap_catalog||{}, defect=cat.defect||'Unknown Defect';
+    const parent=prodByCapture.get(x.production_capture_id);
+    const partId=parent?.part_number_id||'unknown-part';
+    const pn=parent?partName(parent.part_number_id):'Unknown Part Number';
+    const defectKey=cat.code||defect;
+    const d=add(byDefect,defectKey,defect);d.quantity+=Number(x.quantity||0);
+    const partDefectKey=`${partId}|${defectKey}`;
+    const pd=byPartDefect.get(partDefectKey)||{partId,label:pn,defect,defectKey,quantity:0};pd.quantity+=Number(x.quantity||0);byPartDefect.set(partDefectKey,pd);
   }
   const good=production-scrap,yieldRatio=production>0?good/production:null,scrapPct=production>0?scrap/production:null,ppm=production>0?scrap/production*1e6:null,totalProducedCost=goodCost+poorCost,copqPct=totalProducedCost>0?poorCost/totalProducedCost:null;
-  // Rebuild daily using parent production + linked scrap so dates never disappear because a catalog field is missing.
-  const daily=new Map();
-  for(const r of prod){const day=String(r.production_date||'').slice(0,10)||'No Date';let x=daily.get(day);if(!x)x={production:0,scrap:0};x.production+=Number(r.production_quantity||0);x.scrap+=(scrapByCapture.get(r.id)||0);daily.set(day,x);}
-  const dailyMetrics=new Map([...daily.entries()].map(([k,x])=>[k,{scrapPct:x.production>0?x.scrap/x.production:null,production:x.production,scrap:x.scrap}]));
-  return {d:base,production,scrap,scrapCost,good,goodCost,poorCost,totalProducedCost,copqPct,yieldRatio,scrapPct,ppm,daily:dailyMetrics,byPart,byDefect,byCategory,byOperation,byPartCost};
+  const topProducts=[...byPart.values()].filter(x=>x.quantity>0).sort((a,b)=>b.quantity-a.quantity).slice(0,3).map((item,i)=>({...item,rank:i+1,defects:[...byPartDefect.values()].filter(x=>x.partId===item.id).sort((a,b)=>b.quantity-a.quantity).slice(0,3)}));
+  return {d:base,production,scrap,scrapCost,good,goodCost,poorCost,totalProducedCost,copqPct,yieldRatio,scrapPct,ppm,byPart,byDefect,byPartDefect,topProducts};
 }
 function qualityComparison(){const p=dashboardPeriod();return {current:qualityAggregate(dashboardRange()),previous:qualityAggregate({from:p.compareFrom,to:p.compareTo}),period:p};}
 function qualityDeltaMarkup(key,current,previous,higherIsBetter,label){return kpiDeltaMarkup(key,current,previous,higherIsBetter,label);}
@@ -279,7 +277,8 @@ function renderQualityDashboard(){
   const box=document.getElementById('dashboardQuality');if(!box)return;const cmp=qualityComparison(),a=cmp.current,prev=cmp.previous,p=cmp.period;
   if(!a.d.prod.length){box.innerHTML='<div class="panel dashboard-empty"><div class="eyebrow">QUALITY</div><h2>No Data</h2><p>No production captures match the selected Dashboard filters.</p></div>';dashboardStatus('No Data in the selected filter scope.');return;}
   const unknownCatalog=a.d.scrap.filter(x=>!x.scrap_catalog).length;
-  const warning=unknownCatalog?`<div class="notice dashboard-data-note">Data quality: ${unknownCatalog} scrap event(s) do not have a resolved Scrap Catalog record. Their quantities remain included in Scrap, PPM and cost calculations, but their defect/category/operation analysis is shown as Unknown.</div>`:'';
+  const warning=unknownCatalog?`<div class="notice dashboard-data-note">Data quality: ${unknownCatalog} scrap event(s) do not have a resolved Scrap Catalog record. Their quantities remain included in Scrap, PPM and cost calculations, but their defect analysis is shown as Unknown.</div>`:'';
+  const top3=a.topProducts.map(item=>`<article class="quality-top3-card"><div class="quality-rank">RANK ${item.rank}</div><div class="quality-top3-main"><div><div class="quality-top3-label">Part Number</div><h3>${escapeHtml(item.label)}</h3></div><div class="quality-top3-scrap"><strong>${dashNum(item.quantity)}</strong><span>Scrap Pieces</span></div></div><div class="quality-top3-defects"><div class="quality-top3-label">Top 3 Defects</div>${item.defects.length?item.defects.map((d,i)=>`<div class="quality-defect-row"><span class="quality-defect-rank">${i+1}</span><span class="quality-defect-name">${escapeHtml(d.defect)}</span><strong>${dashNum(d.quantity)}</strong></div>`).join(''):'<div class="quality-top3-empty">No classified scrap defects.</div>'}</div></article>`).join('');
   box.innerHTML=`${warning}<div class="dashboard-overview-head"><div><div class="eyebrow">QUALITY OVERVIEW</div><h2>${escapeHtml(p.label)}</h2><p>${p.from} → ${p.to} · Compared with ${p.compareFrom} → ${p.compareTo}</p></div><div class="dashboard-live-badge"><span></span>Quality intelligence</div></div>
   <div class="grid dashboard-kpis quality-kpis">
     <div class="card kpi-card quality-kpi-scrap"><div class="kpi-top"><div class="label">Scrap %</div>${kpiGear('quality_scrap_pct')}</div><div class="metric">${dashPct(a.scrapPct)}</div>${qualityDeltaMarkup('quality_scrap_pct',a.scrapPct,prev.scrapPct,false,'Previous Period')}</div>
@@ -289,21 +288,26 @@ function renderQualityDashboard(){
     <div class="card kpi-card quality-kpi-copq"><div class="kpi-top"><div class="label">COPQ %</div>${kpiGear('quality_copq')}</div><div class="metric">${dashPct(a.copqPct)}</div>${qualityDeltaMarkup('quality_copq',a.copqPct,prev.copqPct,false,'Previous Period')}</div>
     <div class="card kpi-card quality-kpi-yield"><div class="kpi-top"><div class="label">Yield</div>${kpiGear('quality_yield')}</div><div class="metric">${dashPct(a.yieldRatio)}</div>${qualityDeltaMarkup('quality_yield',a.yieldRatio,prev.yieldRatio,true,'Previous Period')}</div>
   </div>
+  <div class="quality-top3-section"><div class="section-title"><div><div class="eyebrow">QUALITY PRIORITY</div><h2>Top 3 products with highest scrap</h2><p>Highest scrap Part Numbers in the selected scope, with their three largest defect contributors.</p></div></div><div class="quality-top3-grid">${top3||'<div class="panel"><p>No scrap recorded in the selected scope.</p></div>'}</div></div>
   <div class="dashboard-chart-grid quality-chart-grid">
-    <div class="panel chart-panel chart-wide"><div class="chart-head"><div><h2>Scrap Trend</h2><p>Daily scrap rate within the selected scope.</p></div>${chartGear('quality_trend')}<span class="chart-chip">%</span></div><div class="chart-wrap"><canvas id="qualityChartTrend"></canvas></div></div>
-    <div class="panel chart-panel chart-wide"><div class="chart-head"><div><h2>Scrap by Part Number</h2><p>Scrap quantity by Part Number.</p></div>${chartGear('quality_part')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartPart"></canvas></div></div>
-    <div class="panel chart-panel"><div class="chart-head"><div><h2>Defect Pareto</h2><p>Largest defect contributors first.</p></div>${chartGear('quality_defect')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartDefect"></canvas></div></div>
-    <div class="panel chart-panel"><div class="chart-head"><div><h2>Scrap by Category</h2><p>Scrap quantity by defect category.</p></div>${chartGear('quality_category')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartCategory"></canvas></div></div>
-    <div class="panel chart-panel"><div class="chart-head"><div><h2>Scrap by Operation</h2><p>Where scrap is being generated.</p></div>${chartGear('quality_operation')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartOperation"></canvas></div></div>
-    <div class="panel chart-panel"><div class="chart-head"><div><h2>Scrap Cost by Part Number</h2><p>Direct scrap cost contribution.</p></div>${chartGear('quality_cost')}<span class="chart-chip">Cost</span></div><div class="chart-wrap"><canvas id="qualityChartCost"></canvas></div></div>
+    <div class="panel chart-panel"><div class="chart-head"><div><h2>Scrap by Defect</h2><p>Scrap quantity by defect.</p></div>${chartGear('quality_defect')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartDefect"></canvas></div></div>
+    <div class="panel chart-panel"><div class="chart-head"><div><h2>Scrap by Part Number</h2><p>Scrap quantity by Part Number.</p></div>${chartGear('quality_part')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartPart"></canvas></div></div>
+    <div class="panel chart-panel"><div class="chart-head"><div><h2>Pareto by Defect</h2><p>Defects ranked from highest to lowest scrap.</p></div>${chartGear('quality_defect_pareto')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartDefectPareto"></canvas></div></div>
+    <div class="panel chart-panel"><div class="chart-head"><div><h2>Pareto by Part Number</h2><p>Part Numbers ranked from highest to lowest scrap.</p></div>${chartGear('quality_part_pareto')}<span class="chart-chip">Pieces</span></div><div class="chart-wrap"><canvas id="qualityChartPartPareto"></canvas></div></div>
   </div>`;
   dashboardStatus(`${a.d.prod.length.toLocaleString()} production captures · ${a.scrap.toLocaleString()} scrap pieces.`);updateDashboardPeriodHint(p);renderQualityCharts(cmp);bindDashboardConfig();
 }
-function renderQualityCharts(cmp){if(!window.Chart){dashboardStatus('Chart library unavailable.','error');return;}const a=cmp.current,labels=[...a.daily.keys()].sort(),scrapRate=labels.map(k=>{const v=a.daily.get(k);return v.scrapPct==null?null:v.scrapPct*100;});const refs=k=>chartReferenceDatasets(k,labels);const pctOpts=k=>{const c=dashboardPrefs().charts?.[k]||{},y={beginAtZero:true,ticks:{callback:v=>v+'%'}};if(c.min!=null)y.min=c.min*100;if(c.max!=null)y.max=c.max*100;return y;};
-  chartCreate('quality_trend',document.getElementById('qualityChartTrend'),{type:'line',data:{labels,datasets:[{label:'Scrap %',data:scrapRate,borderWidth:3,pointRadius:4,tension:.3,fill:true,backgroundColor:'rgba(255,49,49,.10)',borderColor:'#ff3131'},...refs('quality_trend')]},options:chartBase({y:pctOpts('quality_trend')})});
-  const bar=(key,id,map,unit='pieces')=>{const es=[...map.values()].sort((x,y)=>y.quantity-x.quantity),ls=es.map(x=>x.label),vals=es.map(x=>x.quantity);chartCreate(key,document.getElementById(id),{type:'bar',data:{labels:ls,datasets:[{label:DASH_CHART_META[key].label,data:vals,borderWidth:1,backgroundColor:'rgba(255,49,49,.65)',borderColor:'#ff3131'},...chartReferenceDatasets(key,ls)]},options:{...chartBase({y:{beginAtZero:true}}),indexAxis:'y'}});};
-  bar('quality_part','qualityChartPart',a.byPart);bar('quality_defect','qualityChartDefect',a.byDefect);bar('quality_category','qualityChartCategory',a.byCategory);bar('quality_operation','qualityChartOperation',a.byOperation);
-  const ce=[...a.byPartCost.values()].sort((x,y)=>y.cost-x.cost),cl=ce.map(x=>x.label),cv=ce.map(x=>x.cost);chartCreate('quality_cost',document.getElementById('qualityChartCost'),{type:'bar',data:{labels:cl,datasets:[{label:'Scrap Cost',data:cv,borderWidth:1,backgroundColor:'rgba(12,192,223,.65)',borderColor:'#0cc0df'},...chartReferenceDatasets('quality_cost',cl)]},options:{...chartBase({y:{beginAtZero:true}}),indexAxis:'y'}});
+function renderQualityCharts(cmp){
+  if(!window.Chart){dashboardStatus('Chart library unavailable.','error');return;}
+  const a=cmp.current;
+  const pie=(key,id,map)=>{
+    const es=[...map.values()].filter(x=>x.quantity>0).sort((x,y)=>y.quantity-x.quantity),labels=es.map(x=>x.label),vals=es.map(x=>x.quantity);
+    chartCreate(key,document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{label:DASH_CHART_META[key].label,data:vals,borderWidth:2,borderColor:'#fff'}]},options:{...chartBase({}),plugins:{legend:{position:'right',labels:{boxWidth:12}},tooltip:{callbacks:{label:(ctx)=>{const total=ctx.dataset.data.reduce((s,v)=>s+v,0)||1;const pct=(ctx.raw/total*100);return ` ${ctx.label}: ${Number(ctx.raw).toLocaleString()} (${pct.toFixed(1)}%)`;}}}}}});
+  };
+  pie('quality_defect','qualityChartDefect',a.byDefect);
+  pie('quality_part','qualityChartPart',a.byPart);
+  pie('quality_defect_pareto','qualityChartDefectPareto',a.byDefect);
+  pie('quality_part_pareto','qualityChartPartPareto',a.byPart);
   [['quality_scrap_pct',a.scrapPct,'.quality-kpi-scrap .metric'],['quality_ppm',a.ppm,'.quality-kpi-ppm .metric'],['quality_scrap_qty',a.scrap,'.quality-kpi-scrap-qty .metric'],['quality_scrap_cost',a.scrapCost,'.quality-kpi-cost .metric'],['quality_copq',a.copqPct,'.quality-kpi-copq .metric'],['quality_yield',a.yieldRatio,'.quality-kpi-yield .metric']].forEach(([k,v,sel])=>document.querySelectorAll(sel).forEach(e=>{const c=kpiColorFor(k,v);e.style.color=c||'';}));
 }
 function renderDashboardGeneral(){const box=document.getElementById('dashboardGeneral');if(!box)return;const cmp=dashboardComparison(),a=cmp.current,prev=cmp.previous,p=cmp.period;if(!a.d.prod.length){box.innerHTML='<div class="panel dashboard-empty"><div class="eyebrow">GENERAL</div><h2>No Data</h2><p>No production captures match the selected Dashboard filters.</p></div>';dashboardStatus('No Data in the selected filter scope.');return;}
