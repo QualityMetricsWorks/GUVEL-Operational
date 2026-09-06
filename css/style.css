@@ -362,3 +362,74 @@
 @media(max-width:900px){.downtime-chart-grid{grid-template-columns:1fr}.downtime-chart-grid .chart-wide{grid-column:span 1}}
 @media(max-width:720px){.downtime-kpis{grid-template-columns:repeat(2,minmax(140px,1fr))}.downtime-loss-meta{align-items:flex-start;flex-direction:column;gap:3px}}
 @media(max-width:460px){.downtime-kpis{grid-template-columns:1fr}}
+
+/* =========================================================
+   GUVEL VISUAL SYSTEM — Portal Experience Upgrade
+   Official brand: #0cc0df / #ff3131 / Quattrocento
+   ========================================================= */
+:root{
+  --cyan:#0cc0df;--red:#ff3131;--ink:#101820;--muted:#66727d;--line:rgba(16,24,32,.10);
+  --bg:#f4f8fa;--card:rgba(255,255,255,.94);--dark:#0c151d;--shadow:0 12px 35px rgba(16,24,32,.08);
+  --radius:18px;--radius-sm:12px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Quattrocento',Georgia,serif;background:
+  radial-gradient(circle at 8% 0%,rgba(12,192,223,.10),transparent 25%),
+  radial-gradient(circle at 94% 8%,rgba(255,49,49,.08),transparent 23%),var(--bg);cursor:none;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.24;background-image:linear-gradient(rgba(12,192,223,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(12,192,223,.035) 1px,transparent 1px);background-size:42px 42px;z-index:-1}
+button,input,select,textarea{font-family:'Quattrocento',Georgia,serif;cursor:none}
+#laserCursor{position:fixed;left:0;top:0;width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 5px var(--red),0 0 16px rgba(255,49,49,.65);pointer-events:none;z-index:100000;transform:translate(-50%,-50%);transition:width .12s ease,height .12s ease,box-shadow .12s ease;mix-blend-mode:multiply}
+body.cursor-hover #laserCursor{width:13px;height:13px;box-shadow:0 0 6px var(--red),0 0 22px rgba(255,49,49,.85)}
+
+/* Top navigation — clean sides, maximum dashboard width */
+.app-shell{display:block;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:500;min-height:74px;height:auto;background:rgba(255,255,255,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(16,24,32,.08);padding:9px clamp(14px,2.2vw,34px);gap:18px;box-shadow:0 5px 22px rgba(16,24,32,.04)}
+.brand{flex:0 0 auto;gap:9px}.brand-logo{width:38px;height:38px;object-fit:contain}.brand strong{font-size:18px;letter-spacing:.13em;color:var(--ink)}.brand small{font-size:9px;letter-spacing:.16em;color:var(--red)}
+.top-nav{display:flex;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.top-nav::-webkit-scrollbar{display:none}
+.nav-item{position:relative;border:0;background:transparent;color:#53606b;padding:10px 11px;margin:0;border-radius:11px;font-weight:700;font-size:12px;white-space:nowrap;transition:.22s ease;overflow:hidden}
+.nav-item::after{content:"";position:absolute;left:16%;right:16%;bottom:4px;height:2px;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--red));transform:scaleX(0);transform-origin:center;transition:.22s ease}
+.nav-item:hover{color:var(--ink);background:linear-gradient(135deg,rgba(12,192,223,.10),rgba(255,49,49,.07));box-shadow:0 0 18px rgba(12,192,223,.13)}
+.nav-item:hover::after,.nav-item.active::after{transform:scaleX(1)}.nav-item.active{color:var(--ink);background:rgba(12,192,223,.08)}
+.top-actions{gap:7px;font-size:11px;white-space:nowrap}.top-actions button,.secondary{border:1px solid rgba(16,24,32,.10);border-radius:11px;background:rgba(255,255,255,.82);padding:8px 11px;transition:.2s ease}.top-actions button:hover,.secondary:hover{border-color:var(--cyan);box-shadow:0 7px 18px rgba(12,192,223,.12);transform:translateY(-1px)}
+#companyBadge{max-width:180px;overflow:hidden;text-overflow:ellipsis;color:#53606b}
+.sidebar{display:none}
+.content{width:100%;max-width:none;padding:clamp(18px,2vw,30px) clamp(14px,2.6vw,42px) 42px;margin:0}
+.page-head{margin-bottom:18px}.page-head h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.02em}.page-head p{font-size:13px}.page-head-actions{display:flex;gap:8px;align-items:center}.dashboard-page-head{align-items:center}
+.eyebrow{font-size:10px;letter-spacing:.18em;font-weight:700;color:var(--cyan)}
+
+/* GUVEL cards/panels */
+.card,.panel,.table-wrap,.tab{border:1px solid rgba(16,24,32,.08);border-radius:var(--radius);background:var(--card);box-shadow:0 8px 28px rgba(16,24,32,.045);backdrop-filter:blur(10px)}
+.card,.panel{position:relative;overflow:hidden}.card::before,.panel::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,rgba(12,192,223,.75),rgba(255,49,49,.55));opacity:.35}
+.card{padding:18px;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}.card:hover{transform:translateY(-3px);box-shadow:0 15px 35px rgba(16,24,32,.10);border-color:rgba(12,192,223,.28)}
+.panel{padding:18px}.section{margin-top:16px}.section-title{margin:4px 0 12px}.section-title h2,.chart-head h2{font-size:17px;letter-spacing:.01em}
+.metric{font-size:29px;letter-spacing:-.03em}.label{font-size:10px;letter-spacing:.10em}
+.primary{border:0;border-radius:11px;background:linear-gradient(135deg,var(--cyan),#08a9c5);color:#fff;padding:10px 15px;box-shadow:0 8px 20px rgba(12,192,223,.20);font-weight:700;transition:.2s ease}.primary:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(12,192,223,.28)}
+.danger{border-radius:11px}.notice{border-left:0;border-radius:12px;background:linear-gradient(90deg,rgba(12,192,223,.08),rgba(255,255,255,.8));box-shadow:inset 3px 0 var(--cyan)}
+input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;background:rgba(255,255,255,.92);padding:9px 10px;outline:none;transition:.18s ease}input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(12,192,223,.10)}
+
+/* Compact filters — dashboards get the visual priority */
+.dashboard-filter-panel,.register-filter-panel{padding:11px 13px;border-radius:15px;margin-bottom:14px}.dashboard-filter-panel .section-title,.register-filter-panel .section-title{margin:0 0 8px}.dashboard-filter-panel .section-title h2,.register-filter-panel .section-title h2{font-size:13px}.dashboard-filter-panel .section-title p,.register-filter-panel .section-title p{font-size:10px}.dashboard-filters,.register-filters{display:grid;grid-template-columns:repeat(7,minmax(105px,1fr));gap:7px}.dashboard-filters .field,.register-filters .field{gap:3px}.dashboard-filters .field label,.register-filters .field label{font-size:9px;letter-spacing:.04em}.dashboard-filters input,.dashboard-filters select,.register-filters input,.register-filters select{height:33px;padding:6px 8px;border-radius:9px;font-size:11px}.dashboard-filter-panel .actions{margin-top:0}.dashboard-filter-panel .secondary,.register-filter-panel .secondary{padding:7px 9px;font-size:10px;border-radius:9px}
+.dashboard-tabs,.register-tabs{gap:5px;margin-bottom:10px}.tab{padding:8px 13px;border-radius:11px;background:rgba(255,255,255,.72);font-size:11px;font-weight:700;transition:.2s ease}.tab:hover{transform:translateY(-1px);border-color:rgba(12,192,223,.35)}.tab.active{border-color:rgba(12,192,223,.45);color:var(--ink);box-shadow:0 5px 16px rgba(12,192,223,.10),inset 0 -2px var(--cyan)}
+
+/* Dashboard visual identity */
+.dashboard-overview-head{padding:2px 2px 4px}.dashboard-live-badge{border-radius:999px;background:rgba(255,255,255,.75);border-color:rgba(12,192,223,.18);box-shadow:0 5px 18px rgba(12,192,223,.08)}
+.dashboard-kpis .card{border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(244,250,252,.9))}.dashboard-kpis .card:before{height:3px;width:48%;right:auto;border-radius:0 4px 4px 0}.dashboard-kpis .metric{font-weight:700}
+.chart-panel{border-radius:20px;min-height:310px}.chart-panel:hover{border-color:rgba(12,192,223,.22);box-shadow:0 15px 35px rgba(16,24,32,.09)}.chart-head h2{font-size:16px}.chart-chip{border-radius:999px;padding:5px 8px;background:rgba(12,192,223,.06);border-color:rgba(12,192,223,.15)}
+.icon-button.dashboard-config-btn{border-radius:9px;border-color:rgba(16,24,32,.09);transition:.2s ease}.icon-button.dashboard-config-btn:hover{transform:rotate(15deg);box-shadow:0 5px 14px rgba(12,192,223,.14)}
+.fullscreen-btn{border:1px solid rgba(12,192,223,.30);background:linear-gradient(135deg,rgba(12,192,223,.10),rgba(255,49,49,.05));border-radius:11px;padding:9px 12px;color:var(--ink);font-weight:700;transition:.2s ease}.fullscreen-btn:hover{border-color:var(--cyan);box-shadow:0 8px 20px rgba(12,192,223,.16);transform:translateY(-1px)}
+
+/* Full screen dashboard: only the dashboard canvas remains visible */
+.dashboard-fullscreen body{background:#eef5f7}.dashboard-fullscreen #app{min-height:100vh;background:radial-gradient(circle at 5% 0%,rgba(12,192,223,.10),transparent 25%),radial-gradient(circle at 95% 0%,rgba(255,49,49,.08),transparent 24%),#f4f8fa}.dashboard-fullscreen .topbar{display:none}.dashboard-fullscreen .content{padding:26px 30px 30px}.dashboard-fullscreen .dashboard-filter-panel{display:none}.dashboard-fullscreen .dashboard-page-head{display:none}.dashboard-fullscreen .dashboard-tabs{margin-top:0}.dashboard-fullscreen .dashboard-chart-grid,.dashboard-fullscreen .dashboard-kpis{animation:guvelIn .35s ease both}
+@keyframes guvelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Auth gets the same GUVEL identity */
+.auth-screen{background:radial-gradient(circle at 25% 15%,rgba(12,192,223,.13),transparent 28%),radial-gradient(circle at 78% 75%,rgba(255,49,49,.10),transparent 25%),#eef5f7}.auth-card{border-radius:24px;border:1px solid rgba(16,24,32,.08);box-shadow:0 25px 70px rgba(16,24,32,.12);position:relative;overflow:hidden}.auth-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--cyan),var(--red))}.auth-brand{margin-bottom:14px}.auth-brand .brand-logo{width:46px;height:46px}
+
+/* Tables */
+.table-wrap{overflow:auto}.table-wrap table{font-size:12px}.table-wrap th{font-size:9px;letter-spacing:.08em;background:rgba(12,192,223,.035)}.table-wrap tr:hover td{background:rgba(12,192,223,.035)}
+
+@media(max-width:1200px){.top-nav{justify-content:flex-start}.dashboard-filters,.register-filters{grid-template-columns:repeat(4,minmax(120px,1fr))}}
+@media(max-width:850px){.topbar{align-items:center;flex-wrap:wrap}.brand{min-width:150px}.top-nav{order:3;flex-basis:100%;padding-top:2px;justify-content:flex-start}.top-actions{margin-left:auto}.top-actions #companyBadge{display:none}.content{padding:16px 12px 30px}.dashboard-filters,.register-filters{grid-template-columns:repeat(2,minmax(120px,1fr))}}
+@media(max-width:520px){.brand strong{font-size:16px}.brand-logo{width:34px;height:34px}.top-actions button{font-size:10px;padding:7px 8px}.nav-item{padding:8px 9px;font-size:10px}.dashboard-filters,.register-filters{grid-template-columns:1fr 1fr}.dashboard-page-head{align-items:flex-start;flex-direction:column}.page-head-actions{width:100%}.fullscreen-btn{width:100%}.dashboard-chart-grid-six,.dashboard-chart-grid{grid-template-columns:1fr}.dashboard-kpis{grid-template-columns:1fr 1fr}.dashboard-kpis .card{min-height:125px}}
+@media(max-width:380px){.dashboard-kpis{grid-template-columns:1fr}.dashboard-filters,.register-filters{grid-template-columns:1fr}.top-actions #refreshBtn{display:none}}
+@media(pointer:coarse){body,button,input,select,textarea{cursor:auto}#laserCursor{display:none}}
