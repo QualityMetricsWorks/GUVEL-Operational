@@ -546,18 +546,21 @@ function partNumbersPage(){
   +`<div class="master-detail-layout part-number-layout">
     <aside class="master-list panel">
       <div class="master-list-head"><div><div class="eyebrow">MASTER DATA</div><h2>Part Numbers</h2></div><button id="reloadPn" class="icon-refresh" title="Refresh">↻</button></div>
+      <button id="toggleAddPn" class="master-add-btn" type="button"><span>＋</span><span>Add Part Number</span></button>
+      <div id="pnAddForm" class="master-add-form" hidden>
+        <div class="master-add-form-head"><div><div class="eyebrow">NEW RECORD</div><strong id="pnFormTitle">Add Part Number</strong><small id="pnFormDesc">Customer linkage is required.</small></div><button id="closeAddPn" type="button" class="master-add-close" aria-label="Close">×</button></div>
+        <form id="pnForm"><div class="compact-form-grid">
+          <div class="field"><label>Customer *</label><select id="pnCustomer" required><option value="">Loading customers...</option></select></div>
+          <div class="field"><label>Part Number *</label><input id="pnNumber" required maxlength="120" placeholder="Part Number"></div>
+          <div class="field"><label>Description</label><input id="pnDescription" maxlength="500" placeholder="Description"></div>
+          <div class="field"><label>Cost per Piece</label><input id="pnCostPiece" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+          <div class="field"><label>Scrap Cost</label><input id="pnScrapCost" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
+        </div><div class="actions"><button class="primary" type="submit" id="pnSubmit">Save Part Number</button></div><div id="pnMessage" class="status"></div></form>
+      </div>
       <div class="master-list-search"><input id="pnListSearch" type="search" placeholder="Search Part Number..."></div>
       <div id="pnList" class="master-list-items"><div class="master-empty">Loading part numbers...</div></div>
     </aside>
     <section class="master-detail-content">
-      <div class="panel section pn-form-panel"><div class="section-title"><div><div class="eyebrow">PART NUMBER SETUP</div><h2 id="pnFormTitle">Add Part Number</h2><p id="pnFormDesc">Customer linkage is required.</p></div><button id="cancelPnEdit" class="secondary" style="display:none">Cancel Edit</button></div>
-      <form id="pnForm"><div class="form-grid">
-        <div class="field"><label>Customer *</label><select id="pnCustomer" required><option value="">Loading customers...</option></select></div>
-        <div class="field"><label>Part Number *</label><input id="pnNumber" required maxlength="120" placeholder="Part Number"></div>
-        <div class="field"><label>Description</label><input id="pnDescription" maxlength="500" placeholder="Description"></div>
-        <div class="field"><label>Cost per Piece</label><input id="pnCostPiece" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
-        <div class="field"><label>Scrap Cost</label><input id="pnScrapCost" type="number" min="0" step="0.000001" placeholder="0.000000"></div>
-      </div><div class="actions"><button class="primary" type="submit" id="pnSubmit">Save Part Number</button></div><div id="pnMessage" class="status"></div></form></div>
       <div class="panel section profile-workspace" id="pnProfilePanel"><div id="pnProfilePlaceholder" class="profile-placeholder"><div class="profile-placeholder-icon">◫</div><div><div class="eyebrow">PROFILE</div><h2>Select a Part Number</h2><p>Choose a Part Number from the list to open its operational profile.</p></div></div><div id="pnProfileContent"></div></div>
     </section>
   </div>`;
@@ -650,7 +653,7 @@ async function openPnProfile(id){
     <div id="pnTabDefects" style="display:none"></div>`;
 
   panel.style.display='block';
-  document.getElementById('closePnProfile').onclick=()=>{panel.style.display='none';const ph=document.getElementById('pnProfilePlaceholder');if(ph)ph.style.display='flex';};
+  document.getElementById('closePnProfile').onclick=()=>{content.innerHTML='';const ph=document.getElementById('pnProfilePlaceholder');if(ph)ph.style.display='flex';};
   document.querySelectorAll('[data-pntab]').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('[data-pntab]').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
@@ -700,12 +703,14 @@ async function loadPnProfileDefects(partId){
 }
 
 function closeMachineProfile(){
-  const panel=document.getElementById('machineProfilePanel');
-  if(panel)panel.style.display='none';
+  const panel=document.getElementById('machineProfilePanel'),content=document.getElementById('machineProfileContent');
+  if(content)content.innerHTML='';
+  if(panel)panel.style.display='block';
   const placeholder=document.getElementById('machineProfilePlaceholder'); if(placeholder)placeholder.style.display='flex';
 }
 function startPnEdit(p){
   editingPnId=p.id;
+  const addForm=document.getElementById('pnAddForm');if(addForm)addForm.hidden=false;
   document.getElementById('pnNumber').value=p.part_number||'';
   document.getElementById('pnDescription').value=p.description||'';
   document.getElementById('pnCostPiece').value=p.piece_cost??'';
@@ -714,15 +719,15 @@ function startPnEdit(p){
   document.getElementById('pnFormTitle').textContent='Edit Part Number';
   document.getElementById('pnFormDesc').textContent='Existing company_id and customer_id relationships are preserved.';
   document.getElementById('pnSubmit').textContent='Update Part Number';
-  document.getElementById('cancelPnEdit').style.display='inline-block';pnMsg('');
+  const cancel=document.getElementById('cancelPnEdit');if(cancel)cancel.style.display='inline-block';pnMsg('');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function cancelPnEdit(){
-  editingPnId=null;document.getElementById('pnForm').reset();
+  editingPnId=null;const addForm=document.getElementById('pnAddForm');if(addForm)addForm.hidden=true;document.getElementById('pnForm').reset();
   document.getElementById('pnFormTitle').textContent='Add Part Number';
-  document.getElementById('pnFormDesc').textContent='Required relationship: part_numbers.customer_id → customers.id.';
+  document.getElementById('pnFormDesc').textContent='Customer linkage is required.';
   document.getElementById('pnSubmit').textContent='Save Part Number';
-  document.getElementById('cancelPnEdit').style.display='none';pnMsg('');
+  const cancel=document.getElementById('cancelPnEdit');if(cancel)cancel.style.display='none';pnMsg('');
   loadPnCustomers();
 }
 function numOrNull(id){const v=document.getElementById(id).value.trim();return v===''?null:Number(v);}
@@ -753,7 +758,10 @@ async function deletePn(id){
 }
 function bindPartNumbers(){
   document.getElementById('pnForm').onsubmit=savePn;
-  document.getElementById('cancelPnEdit').onclick=cancelPnEdit;
+  const toggle=document.getElementById('toggleAddPn'),form=document.getElementById('pnAddForm'),close=document.getElementById('closeAddPn');
+  if(toggle&&form)toggle.onclick=()=>{form.hidden=!form.hidden;if(!form.hidden)document.getElementById('pnNumber')?.focus();};
+  if(close&&form)close.onclick=()=>{form.hidden=true;cancelPnEdit();};
+  const cancel=document.getElementById('cancelPnEdit');if(cancel)cancel.onclick=cancelPnEdit;
   document.getElementById('reloadPn').onclick=loadPartNumbers;
   loadPnCustomers();loadPartNumbers();
 }
@@ -764,12 +772,19 @@ function machinesPage(){
   +`<div class="master-detail-layout machine-layout">
     <aside class="master-list panel">
       <div class="master-list-head"><div><div class="eyebrow">MASTER DATA</div><h2>Machines</h2></div><button id="reloadMachines" class="icon-refresh" title="Refresh">↻</button></div>
+      <button id="toggleAddMachine" class="master-add-btn" type="button"><span>＋</span><span>Add Machine</span></button>
+      <div id="machineAddForm" class="master-add-form" hidden>
+        <div class="master-add-form-head"><div><div class="eyebrow">NEW RECORD</div><strong id="machineFormTitle">Add Machine</strong><small id="machineFormDesc">A machine belongs to the active company.</small></div><button id="closeAddMachine" type="button" class="master-add-close" aria-label="Close">×</button></div>
+        <form id="machineForm"><div class="compact-form-grid">
+          <div class="field"><label>Brand</label><input id="machineBrand" maxlength="120" placeholder="Brand"></div>
+          <div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div>
+          <div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div>
+        </div><div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div></form>
+      </div>
       <div class="master-list-search"><input id="machineListSearch" type="search" placeholder="Search Machine..."></div>
       <div id="machinesList" class="master-list-items"><div class="master-empty">Loading machines...</div></div>
     </aside>
     <section class="master-detail-content">
-      <div class="panel section machine-form-panel"><div class="section-title"><div><div class="eyebrow">MACHINE SETUP</div><h2 id="machineFormTitle">Add Machine</h2><p id="machineFormDesc">A machine belongs to the active company.</p></div><button id="cancelMachineEdit" class="secondary" style="display:none">Cancel Edit</button></div>
-      <form id="machineForm"><div class="form-grid"><div class="field"><label>Brand</label><input id="machineBrand" maxlength="120" placeholder="Brand"></div><div class="field"><label>Machine Code *</label><input id="machineCode" required maxlength="120" placeholder="MACH-001"></div><div class="field"><label>Machine Name *</label><input id="machineName" required maxlength="200" placeholder="Machine Name"></div></div><div class="actions"><button class="primary" type="submit" id="machineSubmit">Save Machine</button></div><div id="machineMessage" class="status"></div></form></div>
       <div class="panel section profile-workspace" id="machineProfilePanel"><div id="machineProfilePlaceholder" class="profile-placeholder"><div class="profile-placeholder-icon">▥</div><div><div class="eyebrow">PROFILE</div><h2>Select a Machine</h2><p>Choose a Machine from the list to open its operational profile.</p></div></div><div id="machineProfileContent"></div></div>
     </section>
   </div>`;
@@ -856,7 +871,7 @@ function openMachineProfile(id){
   const m=machineCache.find(x=>x.id===id);if(!m)return;
   const links=(m.part_number_machines||[]).map(x=>x.part_numbers).filter(Boolean);
   const panel=document.getElementById('machineProfilePanel'),content=document.getElementById('machineProfileContent');
-  content.innerHTML=`<div class="profile-grid">
+  content.innerHTML=`<div class="section-title profile-title"><div><div class="eyebrow">PROFILE</div><h2>${escapeHtml(m.code)}</h2><p>Operational machine profile</p></div><button id="closeMachineProfile" class="secondary profile-close-btn" type="button">× Close</button></div><div class="profile-grid">
     <div><strong>Brand</strong><span>${escapeHtml(m.brand||'—')}</span></div>
     <div><strong>Machine Code</strong><span>${escapeHtml(m.code)}</span></div>
     <div><strong>Machine Name</strong><span>${escapeHtml(m.name)}</span></div>
@@ -870,12 +885,14 @@ function openMachineProfile(id){
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function closeMachineProfile(){
-  const panel=document.getElementById('machineProfilePanel');
-  if(panel)panel.style.display='none';
+  const panel=document.getElementById('machineProfilePanel'),content=document.getElementById('machineProfileContent');
+  if(content)content.innerHTML='';
+  if(panel)panel.style.display='block';
   const placeholder=document.getElementById('machineProfilePlaceholder'); if(placeholder)placeholder.style.display='flex';
 }
 async function startMachineEdit(m){
   editingMachineId=m.id;
+  const addForm=document.getElementById('machineAddForm');if(addForm)addForm.hidden=false;
   document.getElementById('machineBrand').value=m.brand||'';
   document.getElementById('machineCode').value=m.code||'';
   document.getElementById('machineName').value=m.name||'';
@@ -883,16 +900,17 @@ async function startMachineEdit(m){
   document.getElementById('machineFormTitle').textContent='Edit Machine';
   document.getElementById('machineFormDesc').textContent='Existing machine ID and company relationship are preserved. Linked Part Numbers are read-only here.';
   document.getElementById('machineSubmit').textContent='Update Machine';
-  document.getElementById('cancelMachineEdit').style.display='inline-block';
+  const cancel=document.getElementById('cancelMachineEdit');if(cancel)cancel.style.display='inline-block';
   machineMsg('');window.scrollTo({top:0,behavior:'smooth'});
 }
 async function cancelMachineEdit(){
   editingMachineId=null;
+  const addForm=document.getElementById('machineAddForm');if(addForm)addForm.hidden=true;
   const f=document.getElementById('machineForm');if(f)f.reset();
   document.getElementById('machineFormTitle').textContent='Add Machine';
   document.getElementById('machineFormDesc').textContent='A machine belongs to the active company. Part Number links are managed exclusively from the Part Number Profile.';
   document.getElementById('machineSubmit').textContent='Save Machine';
-  document.getElementById('cancelMachineEdit').style.display='none';machineMsg('');
+  const cancel=document.getElementById('cancelMachineEdit');if(cancel)cancel.style.display='none';machineMsg('');
 }
 async function syncMachinePartNumbers(machineId,partNumberIds){
   const existing=await sb.from('part_number_machines').select('part_number_id').eq('machine_id',machineId);
@@ -946,7 +964,10 @@ async function deleteMachine(id){
 }
 function bindMachines(){
   document.getElementById('machineForm').onsubmit=saveMachine;
-  document.getElementById('cancelMachineEdit').onclick=cancelMachineEdit;
+  const toggle=document.getElementById('toggleAddMachine'),form=document.getElementById('machineAddForm'),close=document.getElementById('closeAddMachine');
+  if(toggle&&form)toggle.onclick=()=>{form.hidden=!form.hidden;if(!form.hidden)document.getElementById('machineCode')?.focus();};
+  if(close&&form)close.onclick=()=>{form.hidden=true;cancelMachineEdit();};
+  const cancel=document.getElementById('cancelMachineEdit');if(cancel)cancel.onclick=cancelMachineEdit;
   document.getElementById('reloadMachines').onclick=loadMachines;
   loadMachines();
 }
@@ -1248,16 +1269,16 @@ async function renderCaptureFoundation(){
   view.innerHTML=`<section class="page-head capture-page-head"><div><div class="eyebrow">GUVEL OPERATIONAL</div><h1>Capture</h1><p>Production, Scrap & Downtime</p></div><div class="capture-live-badge"><span></span>Ready to capture</div></section>
 
   <div class="panel capture-production-panel"><div class="capture-section-head"><div><div class="eyebrow">01 · PRODUCTION</div><h2>Production Information</h2></div><span class="capture-required">Required fields *</span></div><div class="form-grid capture-production-grid">
-  <label>Date<input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></label>
-  <label>Shift<select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
-  <label>Customer<select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></label>
-  <label>Part Number<select id="capPN"><option value="">Select Part Number</option></select></label>
-  <label>Lot Number<input id="capLot"></label>
-  <label>Machine<select id="capMachine"><option value="">Select Machine</option></select></label>
-  <label>Operation<select id="capOperation"><option value="">Select Operation</option></select></label>
-  <label>Production Quantity<input id="capQty" type="number" min="1"></label>
-  <label>Operator<select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></label>
-  <label>Supervisor<select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></label>
+  <div class="field"><label for="capDate">Date *</label><input type="date" id="capDate" value="${new Date().toISOString().slice(0,10)}"></div>
+  <div class="field"><label for="capShift">Shift *</label><select id="capShift"><option value="">Select Shift</option>${shifts.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></div>
+  <div class="field"><label for="capCustomer">Customer *</label><select id="capCustomer"><option value="">Select Customer</option>${customers.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.name)}</option>`).join('')}</select></div>
+  <div class="field"><label for="capPN">Part Number *</label><select id="capPN"><option value="">Select Part Number</option></select></div>
+  <div class="field"><label for="capLot">Lot Number *</label><input id="capLot"></div>
+  <div class="field"><label for="capMachine">Machine *</label><select id="capMachine"><option value="">Select Machine</option></select></div>
+  <div class="field"><label for="capOperation">Operation *</label><select id="capOperation"><option value="">Select Operation</option></select></div>
+  <div class="field"><label for="capQty">Production Quantity *</label><input id="capQty" type="number" min="1"></div>
+  <div class="field"><label for="capOperator">Operator *</label><select id="capOperator"><option value="">Select Operator</option>${personnelOptions('Operator')}</select></div>
+  <div class="field"><label for="capSupervisor">Supervisor *</label><select id="capSupervisor"><option value="">Select Supervisor</option>${personnelOptions('Supervisor')}</select></div>
   </div></div>
 
   <div class="capture-secondary-grid capture-event-grid">
