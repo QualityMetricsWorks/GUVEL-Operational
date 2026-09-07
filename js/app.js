@@ -444,14 +444,15 @@ function fitDashboardFullscreen(){
   if(!dash || !document.fullscreenElement || dashboardState.tab==='General') return;
   root.classList.remove('dashboard-fit-ready');
   dash.style.removeProperty('transform');dash.style.removeProperty('width');dash.style.removeProperty('height');dash.style.removeProperty('--dash-scale');
-  const availableW=Math.max(320,window.innerWidth-28), availableH=Math.max(240,window.innerHeight-24);
+  const availableW=Math.max(320,window.innerWidth-28);
   const naturalW=dash.scrollWidth, naturalH=dash.scrollHeight;
   if(!naturalW||!naturalH)return;
-  const scale=Math.min(1,availableW/naturalW,availableH/naturalH);
+  // Non-General dashboards fit to the available width only. Their full height remains scrollable.
+  const scale=Math.min(1,availableW/naturalW);
   root.style.setProperty('--dash-scale',String(scale));
   root.classList.add('dashboard-fit-ready');
   dash.style.width=`${100/scale}%`;
-  dash.style.height=`${naturalH*scale}px`;
+  dash.style.removeProperty('height');
 }
 function toggleDashboardFullscreen(){const app=document.getElementById('app');if(!app)return;if(document.fullscreenElement){document.exitFullscreen?.();return;}document.documentElement.dataset.dashboardTab=dashboardState.tab;const req=app.requestFullscreen?.();if(req&&typeof req.catch==='function')req.catch(()=>{});}
 document.addEventListener('fullscreenchange',()=>{document.documentElement.classList.toggle('dashboard-fullscreen',!!document.fullscreenElement);if(document.fullscreenElement){requestAnimationFrame(fitDashboardFullscreen);}else{const dash=document.getElementById('dash');if(dash){dash.style.removeProperty('transform');dash.style.removeProperty('width');dash.style.removeProperty('height');dash.style.removeProperty('--dash-scale');}document.documentElement.classList.remove('dashboard-fit-ready');}});

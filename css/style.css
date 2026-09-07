@@ -495,7 +495,7 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 .capture-event-actions .secondary{min-width:145px;height:37px;padding:8px 12px;font-size:10px}
 @media(max-width:760px){.capture-span-2{grid-column:span 1}.capture-event-actions{justify-content:stretch}.capture-event-actions .secondary{width:100%}}
 
-/* Experience Upgrade v5 — dashboard fullscreen fit for non-General dashboards */
+/* Experience Upgrade v6 — non-General dashboard fullscreen is width-fitted and vertically scrollable */
 .dashboard-fit-ready #dash{
   transform:scale(var(--dash-scale,1));
   transform-origin:top left;
@@ -510,7 +510,15 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 .dashboard-fullscreen[data-dashboard-tab="Quality"] .content,
 .dashboard-fullscreen[data-dashboard-tab="Downtime"] .content{
   padding:12px 14px 14px;
-  overflow:hidden;
+  overflow:visible;
+}
+.dashboard-fullscreen[data-dashboard-tab="Production"] #app,
+.dashboard-fullscreen[data-dashboard-tab="Quality"] #app,
+.dashboard-fullscreen[data-dashboard-tab="Downtime"] #app{
+  min-height:100vh;
+  max-height:100vh;
+  overflow-y:auto;
+  overflow-x:hidden;
 }
 .dashboard-fullscreen[data-dashboard-tab="Production"] .dashboard-tabs,
 .dashboard-fullscreen[data-dashboard-tab="Quality"] .dashboard-tabs,
