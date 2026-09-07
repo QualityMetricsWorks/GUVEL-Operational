@@ -571,3 +571,9 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 
 /* Final Quality refinement — always show Rank 1–3; empty ranks remain visually blank */
 .quality-top3-section{margin-top:22px}.quality-top3-na{min-height:210px;display:flex;flex-direction:column}.quality-top3-na-text{flex:1;display:grid;place-items:center;font-size:18px;font-weight:700;color:var(--muted);letter-spacing:.02em}.quality-top3-head .quality-rank-copy{min-width:0}.quality-top3-head .quality-rank-copy .quality-top3-label{margin:0}
+/* Experience Upgrade v9 — GUVEL laser cursor on authentication screen. */
+#authLaserCursor{position:fixed;left:0;top:0;width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 5px var(--red),0 0 16px rgba(255,49,49,.65);pointer-events:none;z-index:100000;transform:translate(-50%,-50%);transition:width .12s ease,height .12s ease,box-shadow .12s ease;mix-blend-mode:multiply}
+body.cursor-hover #authLaserCursor{width:13px;height:13px;box-shadow:0 0 6px var(--red),0 0 22px rgba(255,49,49,.85)}
+body.app-active #authLaserCursor{display:none}
+@media(pointer:coarse){#authLaserCursor{display:none}}
+

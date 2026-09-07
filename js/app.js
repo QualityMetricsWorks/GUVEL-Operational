@@ -1144,7 +1144,7 @@ function showAuth(message=''){
   document.getElementById('authScreen').classList.remove('hidden');
   document.getElementById('authMessage').textContent=message;
 }
-function showApp(){document.getElementById('authScreen').classList.add('hidden');document.getElementById('app').classList.remove('hidden');}
+function showApp(){document.getElementById('authScreen').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.body.classList.add('app-active');}
 async function loadMembership(){
   const {data,error}=await sb.from('company_members').select('company_id, role, companies(name,code)').eq('user_id',currentUser.id).eq('is_active',true).order('created_at',{ascending:true});
   if(error) throw error;
@@ -1659,9 +1659,9 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 /* GUVEL cursor — desktop only */
 (()=>{
-  const dot=document.getElementById('laserCursor');
-  if(!dot || window.matchMedia('(pointer:coarse)').matches) return;
-  document.addEventListener('mousemove',e=>{dot.style.left=e.clientX+'px';dot.style.top=e.clientY+'px';});
-  document.addEventListener('mouseover',e=>{if(e.target.closest('button,a,input,select,textarea,.card,.panel,.tab,.nav-item'))document.body.classList.add('cursor-hover');});
-  document.addEventListener('mouseout',e=>{if(e.target.closest('button,a,input,select,textarea,.card,.panel,.tab,.nav-item'))document.body.classList.remove('cursor-hover');});
+  const dots=[document.getElementById('laserCursor'),document.getElementById('authLaserCursor')].filter(Boolean);
+  if(!dots.length || window.matchMedia('(pointer:coarse)').matches) return;
+  document.addEventListener('mousemove',e=>dots.forEach(dot=>{dot.style.left=e.clientX+'px';dot.style.top=e.clientY+'px';}));
+  document.addEventListener('mouseover',e=>{if(e.target.closest('button,a,input,select,textarea,.card,.panel,.tab,.nav-item,.auth-card'))document.body.classList.add('cursor-hover');});
+  document.addEventListener('mouseout',e=>{if(e.target.closest('button,a,input,select,textarea,.card,.panel,.tab,.nav-item,.auth-card'))document.body.classList.remove('cursor-hover');});
 })();
