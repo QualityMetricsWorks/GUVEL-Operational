@@ -455,3 +455,42 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 @media(max-width:520px){.capture-production-grid{grid-template-columns:1fr}}
 
 .master-add-form-head small{display:block;margin-top:3px;color:var(--muted);font-size:8.5px;line-height:1.35}.master-add-form-head>div:first-child{min-width:0}.master-add-form-head strong{font-size:11.5px}
+
+/* ===== GUVEL UI4 — capture event symmetry, stable profiles, barcode, chart grid cleanup ===== */
+.capture-event-form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+.capture-event-form-grid .field{min-width:0;display:flex;flex-direction:column;gap:5px}
+.capture-event-form-grid .field label{font-size:9px;font-weight:800;color:#53606b;letter-spacing:.02em}
+.capture-event-form-grid .field:focus-within label{color:var(--cyan)}
+.capture-event-form-grid input,.capture-event-form-grid select{width:100%;height:37px;padding:8px 9px;font-size:10.5px;min-width:0;border-radius:10px}
+.capture-event-action{display:flex;align-items:flex-end;height:100%}
+.capture-event-action .secondary{width:100%;height:37px;padding:8px 10px;font-size:10px}
+.capture-event-actions{margin-top:10px;display:flex;justify-content:flex-end}
+.capture-event-actions .secondary{min-width:145px}
+
+/* Keep Part Number profile geometry stable while switching tabs. */
+#pnProfileContent{min-height:860px}
+#pnTabOperations,#pnTabMachines,#pnTabCycles,#pnTabDefects{height:520px;min-height:520px;overflow:auto;scrollbar-gutter:stable}
+#pnTabOperations>.panel,#pnTabMachines>.panel,#pnTabCycles>.panel,#pnTabDefects>.panel{min-height:490px}
+.profile-workspace{overflow:hidden}
+
+/* Machine profile: selected state replaces the placeholder instead of stacking both. */
+#machineProfileContent{min-height:500px}
+
+/* Barcode is intentionally visual: label + large code + part number only. */
+.barcode-card{padding:16px 18px;border-radius:16px;background:#fff;border:1px solid rgba(16,24,32,.08);box-shadow:0 10px 28px rgba(16,24,32,.05)}
+.barcode-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#53606b;margin-bottom:8px}
+.barcode-container{min-height:154px;padding:12px 14px;display:flex;align-items:center;justify-content:center;overflow:auto}
+.barcode-svg{width:min(100%,780px);height:auto;max-height:154px}
+.barcode-card code{display:block;text-align:center;font-size:17px;font-weight:700;letter-spacing:2.5px;margin-top:8px;color:var(--ink)}
+
+/* Clean chart canvas: no default grey plot grid, only configured reference lines remain. */
+.chart-panel canvas{background:#fff}
+@media(max-width:1100px){.capture-event-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.capture-event-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.capture-event-actions{justify-content:stretch}.capture-event-actions .secondary{width:100%}#pnProfileContent{min-height:760px}#pnTabOperations,#pnTabMachines,#pnTabCycles,#pnTabDefects{height:460px;min-height:460px}}
+@media(max-width:520px){.capture-event-form-grid{grid-template-columns:1fr}.capture-event-action{height:auto}.capture-event-action .secondary{width:100%}.barcode-card{padding:13px}.barcode-container{min-height:130px}.barcode-svg{max-height:130px}}
+
+/* UI4 event blocks: both loss-capture panels use the same geometric rhythm. */
+.capture-span-2{grid-column:span 2}
+.capture-event-actions{margin-top:10px;display:flex;justify-content:flex-end}
+.capture-event-actions .secondary{min-width:145px;height:37px;padding:8px 12px;font-size:10px}
+@media(max-width:760px){.capture-span-2{grid-column:span 1}.capture-event-actions{justify-content:stretch}.capture-event-actions .secondary{width:100%}}

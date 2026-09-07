@@ -393,7 +393,7 @@ function renderQualityCharts(cmp){
   const pareto=(key,id,map)=>{
     const es=[...map.values()].filter(x=>x.quantity>0).sort((x,y)=>y.quantity-x.quantity),labels=es.map(x=>x.label),vals=es.map(x=>x.quantity);
     const total=vals.reduce((s,v)=>s+v,0)||1;let running=0;const cumulative=vals.map(v=>{running+=v;return +(running/total*100).toFixed(2);});
-    chartCreate(key,document.getElementById(id),{type:'bar',data:{labels,datasets:[{type:'bar',label:'Scrap Pieces',data:vals,backgroundColor:'rgba(255,49,49,.72)',borderColor:'#ff3131',borderWidth:1,borderRadius:3,yAxisID:'y'},{type:'line',label:'Cumulative %',data:cumulative,borderColor:'#0cc0df',backgroundColor:'rgba(12,192,223,.10)',borderWidth:3,pointRadius:3,pointHoverRadius:5,tension:.25,fill:false,yAxisID:'yPct'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:12,usePointStyle:true}},tooltip:{callbacks:{label:(ctx)=>ctx.dataset.yAxisID==='yPct'?` Cumulative: ${ctx.raw.toFixed(1)}%`:` Scrap: ${Number(ctx.raw).toLocaleString()} pieces`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:35,minRotation:0}},y:{beginAtZero:true,title:{display:true,text:'Scrap Pieces'}},yPct:{beginAtZero:true,min:0,max:100,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cumulative %'},ticks:{callback:v=>v+'%'}}}}});
+    chartCreate(key,document.getElementById(id),{type:'bar',data:{labels,datasets:[{type:'bar',label:'Scrap Pieces',data:vals,backgroundColor:'rgba(255,49,49,.72)',borderColor:'#ff3131',borderWidth:1,borderRadius:3,yAxisID:'y'},{type:'line',label:'Cumulative %',data:cumulative,borderColor:'#0cc0df',backgroundColor:'rgba(12,192,223,.10)',borderWidth:3,pointRadius:3,pointHoverRadius:5,tension:.25,fill:false,yAxisID:'yPct'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{boxWidth:12,usePointStyle:true}},tooltip:{callbacks:{label:(ctx)=>ctx.dataset.yAxisID==='yPct'?` Cumulative: ${ctx.raw.toFixed(1)}%`:` Scrap: ${Number(ctx.raw).toLocaleString()} pieces`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:35,minRotation:0}},y:{beginAtZero:true,grid:{display:false},title:{display:true,text:'Scrap Pieces'}},yPct:{beginAtZero:true,min:0,max:100,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cumulative %'},ticks:{callback:v=>v+'%'}}}}});
   };
   pie('quality_defect','qualityChartDefect',a.byDefect);
   pie('quality_part','qualityChartPart',a.byPart);
@@ -423,7 +423,7 @@ function renderDashboardGeneral(){const box=document.getElementById('dashboardGe
  </div>`;
  dashboardStatus(`${a.d.prod.length.toLocaleString()} production captures · ${a.d.scrap.length.toLocaleString()} scrap events · ${a.d.downtime.length.toLocaleString()} downtime events.`);updateDashboardPeriodHint(p);renderDashboardCharts(cmp);}
 function updateDashboardPeriodHint(p){const el=document.getElementById('dashboardPeriodHint');if(el)el.textContent=`Period: ${p.from} to ${p.to} · Previous comparison: ${p.compareFrom} to ${p.compareTo}`;}
-function chartBase(yOptions={}){return {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false},ticks:{maxRotation:0}},y:{beginAtZero:true,...yOptions}}};}
+function chartBase(yOptions={}){return {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false},ticks:{maxRotation:0}},y:{beginAtZero:true,grid:{display:false},...yOptions}}};}
 function dashboardDailyMetric(day){return dashboardAggregate({from:day,to:day});}
 function renderDashboardCharts(cmp){if(!window.Chart){dashboardStatus('Chart library unavailable.','error');return;}const labels=niceLabels(cmp.current.daily),daily=labels.map(day=>dashboardDailyMetric(day)),prod=daily.map(x=>x.production),oee=daily.map(x=>x.oee==null?null:x.oee*100),yieldVals=daily.map(x=>x.yieldRatio==null?null:x.yieldRatio*100),ppmVals=daily.map(x=>x.ppm==null?null:x.ppm),scrapVals=daily.map(x=>x.scrapPct==null?null:x.scrapPct*100),copqVals=daily.map(x=>x.copqPct==null?null:x.copqPct*100);const refs=k=>chartReferenceDatasets(k,labels);const yOpts=(key,extra={})=>{const c=dashboardPrefs().charts?.[key]||{},pct=DASH_CHART_META[key].unit==='%',o={...extra};if(c.min!=null)o.min=pct?c.min*100:c.min;if(c.max!=null)o.max=pct?c.max*100:c.max;return o;};
 const line=(key,id,label,data,extra={})=>chartCreate(key,document.getElementById(id),{type:'line',data:{labels,datasets:[{label,data,borderWidth:3,pointRadius:4,pointHoverRadius:7,tension:.3,fill:true,backgroundColor:key==='oee'||key==='yield'?'rgba(12,192,223,.12)':'rgba(255,49,49,.10)',borderColor:key==='oee'||key==='yield'?'#0cc0df':'#ff3131',pointBackgroundColor:'#fff',pointBorderWidth:2},...refs(key)]},options:chartBase({y:yOpts(key,extra)})});
@@ -616,13 +616,13 @@ async function openPnProfile(id){
       const pattern=patterns[ch];
       for(let i=0;i<pattern.length;i++){
         const w=pattern[i]==='w'?3:1;
-        if(i%2===0) bars+=`<rect x="${x}" y="8" width="${w}" height="78" fill="#111"/>`;
+        if(i%2===0) bars+=`<rect x="${x}" y="8" width="${w}" height="104" fill="#111"/>`;
         x+=w;
       }
       x+=1;
     }
     const width=x+12;
-    return `<svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="${width}" height="112" viewBox="0 0 ${width} 112" role="img" aria-label="Code 39 barcode for ${escapeHtml(safe)}"><rect width="100%" height="100%" fill="#fff"/>${bars}<text x="${width/2}" y="104" text-anchor="middle" font-family="monospace" font-size="14" fill="#111">${escapeHtml(safe)}</text></svg>`;
+    return `<svg class="barcode-svg" xmlns="http://www.w3.org/2000/svg" width="${width}" height="145" viewBox="0 0 ${width} 145" role="img" aria-label="Code 39 barcode for ${escapeHtml(safe)}"><rect width="100%" height="100%" fill="#fff"/>${bars}<text x="${width/2}" y="137" text-anchor="middle" font-family="monospace" font-size="17" fill="#111">${escapeHtml(safe)}</text></svg>`;
   };
 
   content.innerHTML=`
@@ -637,7 +637,7 @@ async function openPnProfile(id){
       <div><strong>Description</strong><span>${escapeHtml(p.description||'—')}</span></div>
     </div>
     <div class="barcode-card">
-      <strong>Automatic Identification — Part Number Barcode</strong>
+      <div class="barcode-label">Código de Barras</div>
       <div class="barcode barcode-container">${barcodeSvg(p.part_number)}</div>
       <code>${escapeHtml(p.part_number)}</code>
     </div>
@@ -666,8 +666,8 @@ async function openPnProfile(id){
   await loadPnProfileMachines(id);
   await loadPnProfileCycles(id);
   await loadPnProfileDefects(id);
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
 async function loadPnProfileOperations(partId){
  const box=document.getElementById('pnTabOperations');if(!box)return;
  box.innerHTML=`<div class="panel section"><h3>Operations</h3><form id="pnOpForm"><div class="form-grid"><div class="field"><label>Operation Number *</label><input id="pnpOpNumber" required></div><div class="field"><label>Operation Name *</label><input id="pnpOpName" required></div></div><div class="actions"><button class="primary">Add Operation</button></div><div id="pnpOpMsg" class="status"></div></form><div class="table-wrap"><table><thead><tr><th>Operation</th><th>Name</th><th>Action</th></tr></thead><tbody id="pnpOpsBody"></tbody></table></div></div>`;
@@ -880,10 +880,11 @@ function openMachineProfile(id){
   <div class="profile-next"><strong>Linked Part Numbers (${links.length})</strong>${links.length?`<ul class="profile-list">${links.map(p=>`<li><strong>${escapeHtml(p.part_number)}</strong>${p.description?` — ${escapeHtml(p.description)}`:''}</li>`).join('')}</ul>`:'<p>No Part Numbers linked yet.</p>'}
   <div class="profile-next"><strong>Relationship:</strong> part_numbers ↔ part_number_machines ↔ machines. Part Number links are managed exclusively from the Part Number Profile.</div>`;
   panel.style.display='block';
+  const placeholder=document.getElementById('machineProfilePlaceholder'); if(placeholder)placeholder.style.display='none';
   const close=document.getElementById('closeMachineProfile');
   if(close)close.onclick=closeMachineProfile;
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
 function closeMachineProfile(){
   const panel=document.getElementById('machineProfilePanel'),content=document.getElementById('machineProfileContent');
   if(content)content.innerHTML='';
@@ -1283,24 +1284,24 @@ async function renderCaptureFoundation(){
 
   <div class="capture-secondary-grid capture-event-grid">
     <div class="panel capture-event-panel"><div class="capture-section-head"><div><div class="eyebrow">02 · QUALITY LOSS</div><h3>Scrap</h3></div><span class="capture-count-badge" id="scrapCountBadge">0</span></div>
-      <div class="form-grid">
-        <label>Defect<select id="capScrapDefect"><option value="">Select Part Number first</option></select></label>
-        <label>Quantity<input id="capScrapQty" type="number" min="1"></label>
-        <label>Reason<input id="capScrapReason"></label>
+      <div class="form-grid capture-event-form-grid">
+        <div class="field"><label for="capScrapDefect">Defect</label><select id="capScrapDefect"><option value="">Select Part Number first</option></select></div>
+        <div class="field"><label for="capScrapQty">Quantity</label><input id="capScrapQty" type="number" min="1"></div>
+        <div class="field capture-span-2"><label for="capScrapReason">Reason</label><input id="capScrapReason"></div>
       </div>
-      <div class="form-actions"><button class="secondary" id="addScrapBtn" type="button">Add Scrap</button></div>
+      <div class="form-actions capture-event-actions"><button class="secondary" id="addScrapBtn" type="button">Add Scrap</button></div>
       <div id="scrapDraftList" class="capture-draft-list"></div>
       <div id="scrapSuccess" class="capture-success" role="status" aria-live="polite"></div>
     </div>
 
     <div class="panel capture-event-panel"><div class="capture-section-head"><div><div class="eyebrow">03 · TIME LOSS</div><h3>Downtime</h3></div><span class="capture-count-badge" id="downtimeCountBadge">0</span></div>
-      <div class="form-grid">
-        <label>Downtime<select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></label>
-        <label>Minutes<input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></label>
-        <label>Reason<input id="capDowntimeReason"></label>
-        <label>Type<select id="capDowntimeType"><option value="">Select Type</option><option value="Planned">Planned</option><option value="Unplanned">Unplanned</option></select></label>
+      <div class="form-grid capture-event-form-grid">
+        <div class="field"><label for="capDowntime">Downtime</label><select id="capDowntime"><option value="">Select Downtime</option>${downtimeCatalog.map(x=>`<option value="${x.id}">${escapeHtml(x.code)} — ${escapeHtml(x.downtime)}</option>`).join('')}</select></div>
+        <div class="field"><label for="capDowntimeMinutes">Minutes</label><input id="capDowntimeMinutes" type="number" min="0.01" step="0.01"></div>
+        <div class="field"><label for="capDowntimeReason">Reason</label><input id="capDowntimeReason"></div>
+        <div class="field"><label for="capDowntimeType">Type</label><select id="capDowntimeType"><option value="">Select Type</option><option value="Planned">Planned</option><option value="Unplanned">Unplanned</option></select></div>
       </div>
-      <div class="form-actions"><button class="secondary" id="addDowntimeBtn" type="button">Add Downtime</button></div>
+      <div class="form-actions capture-event-actions"><button class="secondary" id="addDowntimeBtn" type="button">Add Downtime</button></div>
       <div id="downtimeDraftList" class="capture-draft-list"></div>
       <div id="downtimeSuccess" class="capture-success" role="status" aria-live="polite"></div>
     </div>
