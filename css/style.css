@@ -539,3 +539,32 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 .register-head-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .register-export-btn{padding:7px 11px;font-size:10px;border-radius:9px}
 @media(max-width:720px){.register-head-actions{width:100%}.register-head-actions button{flex:1}}
+
+/* Experience Upgrade v7 — true vertical scrolling inside Full Screen for non-General dashboards. */
+.dashboard-fullscreen[data-dashboard-tab="Production"] #app,
+.dashboard-fullscreen[data-dashboard-tab="Quality"] #app,
+.dashboard-fullscreen[data-dashboard-tab="Downtime"] #app{
+  height:100vh !important;
+  min-height:100vh !important;
+  max-height:none !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  display:block !important;
+}
+.dashboard-fullscreen[data-dashboard-tab="Production"] .content,
+.dashboard-fullscreen[data-dashboard-tab="Quality"] .content,
+.dashboard-fullscreen[data-dashboard-tab="Downtime"] .content{
+  min-height:max-content !important;
+  height:auto !important;
+  overflow:visible !important;
+}
+.dashboard-fullscreen[data-dashboard-tab="Production"] #dash,
+.dashboard-fullscreen[data-dashboard-tab="Quality"] #dash,
+.dashboard-fullscreen[data-dashboard-tab="Downtime"] #dash{
+  transform:none !important;
+  width:100% !important;
+  overflow:visible !important;
+}
+.dashboard-fullscreen[data-dashboard-tab="Production"] .app-shell,
+.dashboard-fullscreen[data-dashboard-tab="Quality"] .app-shell,
+.dashboard-fullscreen[data-dashboard-tab="Downtime"] .app-shell{min-height:0 !important;height:auto !important;}
