@@ -568,3 +568,6 @@ input,select,textarea{border:1px solid rgba(16,24,32,.11);border-radius:10px;bac
 .dashboard-fullscreen[data-dashboard-tab="Production"] .app-shell,
 .dashboard-fullscreen[data-dashboard-tab="Quality"] .app-shell,
 .dashboard-fullscreen[data-dashboard-tab="Downtime"] .app-shell{min-height:0 !important;height:auto !important;}
+
+/* Final Quality refinement — always show Rank 1–3; empty ranks display Not Applicable */
+.quality-top3-section{margin-top:22px}.quality-top3-na{min-height:210px;display:flex;flex-direction:column}.quality-top3-na-text{flex:1;display:grid;place-items:center;font-size:18px;font-weight:700;color:var(--muted);letter-spacing:.02em}.quality-top3-head .quality-rank-copy{min-width:0}.quality-top3-head .quality-rank-copy .quality-top3-label{margin:0}
