@@ -1128,24 +1128,19 @@ async function renderUsersInvitations(){const host=document.getElementById('user
 function switchUsersTab(tab){document.querySelectorAll('[data-users-tab]').forEach(b=>b.classList.toggle('active',b.dataset.usersTab===tab));if(tab==='members'){const host=document.getElementById('usersWorkspace');host.innerHTML=`<div class="panel"><div class="section-title"><div><h2>Company Users</h2><p>Authenticated users with active or inactive membership in this company.</p></div></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="usersBody"><tr><td colspan="6">Loading users...</td></tr></tbody></table></div></div>`;renderUsersMembers();}else renderUsersInvitations();}
 function showInviteDialog(){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="section-title"><div><div class="eyebrow">NEW INVITATION</div><h2>Invite User</h2><p>The user must sign in with the invited email to accept.</p></div><button class="secondary" id="closeUserDialog" type="button">×</button></div><div class="form-grid"><div class="field"><label>Email *</label><input id="inviteEmail" type="email" required placeholder="user@company.com"></div><div class="field"><label>Role *</label><select id="inviteRole"><option value="admin">Admin</option><option value="manager">Manager</option><option value="supervisor">Supervisor</option><option value="viewer" selected>Viewer</option></select></div></div><div id="inviteMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelInvite" type="button">Cancel</button><button class="primary" id="createInvite" type="button">Create Invitation</button></div></div>`;document.body.appendChild(o);document.getElementById('closeUserDialog').onclick=()=>o.remove();document.getElementById('cancelInvite').onclick=()=>o.remove();document.getElementById('createInvite').onclick=createInvitation;}
 async function createInvitation(){
-  const email=document.getElementById('inviteEmail').value.trim().toLowerCase(),
-    role=document.getElementById('inviteRole').value,
-    msg=document.getElementById('inviteMessage'),
-    btn=document.getElementById('createInvite');
+  const emailEl=document.getElementById('inviteEmail'), roleEl=document.getElementById('inviteRole'), msg=document.getElementById('inviteMessage'), btn=document.getElementById('createInvite');
+  const email=(emailEl?.value||'').trim().toLowerCase(), role=roleEl?.value||'viewer';
   if(!email){msg.className='status error';msg.textContent='Email is required.';return;}
   btn.disabled=true;
   msg.className='status';
   msg.textContent='Creating invitation...';
   try{
-    const {data,error}=await sb.rpc('create_company_invitation',{
-      target_company_id:activeCompanyId,
-      target_email:email,
-      target_role:role
-    });
+    const result=await sb.rpc('create_company_invitation',{target_company_id:activeCompanyId,target_email:email,target_role:role});
+    const {data,error}=result||{};
     if(error)throw error;
 
-    // Supabase RPC may return RETURNS TABLE as an array, object, or (in some
-    // environments) a JSON string. Normalize all supported response shapes.
+    // The RPC is RETURNS TABLE, so Supabase normally returns an array of rows.
+    // Normalize a few harmless transport variants without changing the database contract.
     let payload=data;
     if(typeof payload==='string'){
       try{payload=JSON.parse(payload);}catch{}
@@ -1158,37 +1153,55 @@ async function createInvitation(){
       if(nested&&typeof nested==='object') payload=nested;
     }
 
-    const token=String(payload?.invitation_token??payload?.token??'').trim();
+    let token='';
+    if(payload&&typeof payload==='object'){
+      token=String(payload.invitation_token??payload.invitationToken??payload.token??'').trim();
+    }
     if(!token){
-      console.error('GUVEL invitation RPC response did not contain invitation_token:',data);
-      throw new Error('The invitation was created, but the server did not return the invitation token. Please do not create another invitation; contact the system administrator.');
+      console.error('GUVEL invitation RPC response did not contain invitation_token:',{data,error});
+      throw new Error('The invitation was created, but the server response did not contain the invitation token. Do not create another invitation.');
     }
 
-    const invitationUrl=new URL(window.location.href);
-    invitationUrl.search='';
-    invitationUrl.hash='';
-    invitationUrl.searchParams.set('invite',token);
-    const inviteLink=invitationUrl.toString();
+    // Build the invitation URL without mutating the current page state.
+    const inviteLink=`${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(token)}`;
 
+    // IMPORTANT: show Success immediately after the successful RPC.
+    // The delivery layer (Hostinger/Resend) is intentionally separate from this transaction.
     msg.className='status success';
-    msg.innerHTML=`<strong>Invitation created.</strong><div class="invite-token-box invite-link-box"><input id="copyInviteLinkValue" type="text" readonly value="${escapeHtml(inviteLink)}" aria-label="Invitation link"><button class="secondary" id="copyInviteLink" type="button">Copy Invitation Link</button></div><details class="invite-token-details"><summary>Technical token</summary><div class="invite-token-box"><input id="copyInviteTokenValue" type="text" readonly value="${escapeHtml(token)}" aria-label="Invitation token"><button class="secondary" id="copyInviteToken" type="button">Copy Token</button></div></details><small>The invitation link is the value intended for the personalized email. The raw token is shown only for administrative troubleshooting.</small>`;
+    msg.innerHTML=`<strong>Invitation created successfully.</strong><div class="invite-meta"><span>Email: <b>${escapeHtml(email)}</b></span><span>Role: <b>${escapeHtml(USER_ROLE_LABELS[role]||role)}</b></span></div><div class="invite-token-box invite-link-box"><input id="copyInviteLinkValue" type="text" readonly value="${escapeHtml(inviteLink)}" aria-label="Invitation link"><button class="secondary" id="copyInviteLink" type="button">Copy Invitation Link</button></div><details class="invite-token-details"><summary>Technical token</summary><div class="invite-token-box"><input id="copyInviteTokenValue" type="text" readonly value="${escapeHtml(token)}" aria-label="Invitation token"><button class="secondary" id="copyInviteToken" type="button">Copy Token</button></div></details><small>The invitation link is the value intended for the personalized email. The raw token is shown only for administrative troubleshooting.</small>`;
 
     const copyValue=async(value,button,label)=>{
+      const text=String(value||'').trim();
+      if(!text){button.textContent='Nothing to copy';setTimeout(()=>button.textContent=label,1800);return;}
       try{
-        const ta=document.createElement('textarea'); ta.value=value; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
         let copied=false;
-        if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(value);copied=true;}catch{}}
-        if(!copied)copied=document.execCommand('copy');
-        ta.remove();
+        if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(text);copied=true;}catch{}}
+        if(!copied){
+          const ta=document.createElement('textarea');
+          ta.value=text;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
+          document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);
+          copied=document.execCommand('copy');ta.remove();
+        }
         if(!copied)throw new Error('Clipboard copy failed');
-        button.textContent='Copied'; setTimeout(()=>{button.textContent=label;},1600);
-      }catch(err){ console.error('GUVEL copy failed:',err); button.textContent='Copy failed'; setTimeout(()=>{button.textContent=label;},1800); }
+        button.textContent='Copied';
+        setTimeout(()=>button.textContent=label,1600);
+      }catch(err){
+        console.error('GUVEL copy failed:',err);
+        // Keep the value selectable so the user always has a manual fallback.
+        button.textContent='Select to copy';
+        const input=button.previousElementSibling;
+        if(input){input.focus();input.select();input.setSelectionRange(0,input.value.length);}
+        setTimeout(()=>button.textContent=label,2200);
+      }
     };
-    document.getElementById('copyInviteLink')?.addEventListener('click',()=>copyValue(inviteLink,document.getElementById('copyInviteLink'),'Copy Invitation Link'));
-    document.getElementById('copyInviteToken')?.addEventListener('click',()=>copyValue(token,document.getElementById('copyInviteToken'),'Copy Token'));
+    document.getElementById('copyInviteLink')?.addEventListener('click',()=>copyValue(document.getElementById('copyInviteLinkValue')?.value,document.getElementById('copyInviteLink'),'Copy Invitation Link'));
+    document.getElementById('copyInviteToken')?.addEventListener('click',()=>copyValue(document.getElementById('copyInviteTokenValue')?.value,document.getElementById('copyInviteToken'),'Copy Token'));
+
+    // Refresh the invitation table after success, but never let table refresh hide the success state.
+    renderUsersInvitations().catch(e=>console.warn('GUVEL invitation list refresh failed:',e));
   }catch(e){
     msg.className='status error';
-    msg.textContent=e.message||'Unable to create invitation.';
+    msg.textContent=e?.message||'Unable to create invitation.';
   }finally{btn.disabled=false;}
 }
 async function revokeInvitation(id){if(!confirm('Revoke this pending invitation?'))return;try{const {error}=await sb.rpc('revoke_company_invitation',{target_invitation_id:id});if(error)throw error;renderUsersInvitations();}catch(e){alert(e.message||'Unable to revoke invitation.');}}
