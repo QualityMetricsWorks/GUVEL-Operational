@@ -456,7 +456,9 @@ function bindDashboard(){const fs=document.getElementById('dashboardFullscreen')
 function capture(){return head('Capture','Register production, scrap and downtime as one controlled transaction.')}
 function fields(a){return a.map(x=>`<div class="field"><label>${x}</label><input placeholder="${x}"></div>`).join('')}
 function table(title,cols){return head(title,'Foundation module — ready for Supabase CRUD.')+`<div class="panel"><div class="actions"><button class="primary">Add New</button></div></div><div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody><tr><td colspan="${cols.length}">No records yet.</td></tr></tbody></table></div>`}
-function shiftsPage(){return head('Settings — Shifts','Create and maintain production shifts. Excluded planned time is entered as total minutes.')+`<div class="panel section"><div class="section-title"><div><h2 id="shiftFormTitle">Add Shift</h2><p id="shiftFormDesc">All shifts are linked to the active company.</p></div><button id="cancelEdit" class="secondary" style="display:none">Cancel Edit</button></div><form id="shiftForm"><div class="form-grid"><div class="field"><label>Shift Code *</label><input id="shiftCode" required maxlength="50" placeholder="1"></div><div class="field"><label>Shift Name *</label><input id="shiftName" required maxlength="150" placeholder="First Shift"></div><div class="field"><label>Start *</label><input id="shiftStart" type="time" required></div><div class="field"><label>End *</label><input id="shiftEnd" type="time" required></div><div class="field"><label>Excluded Planned Time (minutes)</label><input id="shiftExcluded" type="number" min="0" step="0.01" value="0"></div></div><div class="actions"><button class="primary" type="submit" id="shiftSubmit">Save Shift</button></div><div id="shiftMessage" class="status"></div></form></div><div class="section-title"><div><h2>Registered Shifts</h2><p>Company-scoped master data.</p></div><button id="reloadShifts" class="secondary">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Start</th><th>End</th><th>Excluded Planned Time</th><th>Actions</th></tr></thead><tbody id="shiftsBody"><tr><td colspan="6">Loading shifts...</td></tr></tbody></table></div>`}
+function shiftsPage(){return head('Settings — Company & Shifts','Manage company identity and production shifts.')+`
+<div class="panel section"><div class="section-title"><div><h2>Company Identity</h2><p>Your tenant URL is used for company-specific access and invitation links.</p></div></div><form id="companyIdentityForm"><div class="form-grid"><div class="field"><label>Company Name</label><input id="companyIdentityName" value="" required></div><div class="field"><label>Company Code</label><input id="companyIdentityCode" value="" required></div><div class="field"><label>Company Subdomain *</label><input id="companyIdentitySubdomain" value="" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"><small id="companyPortalUrl"></small></div></div><div class="actions"><button class="primary" id="saveCompanyIdentity" type="submit">Save Company Identity</button></div><div id="companyIdentityMessage" class="status"></div></form></div>`+`
+<div class="panel section"><div class="section-title"><div><h2 id="shiftFormTitle">Add Shift</h2><p id="shiftFormDesc">All shifts are linked to the active company.</p></div><button id="cancelEdit" class="secondary" style="display:none">Cancel Edit</button></div><form id="shiftForm"><div class="form-grid"><div class="field"><label>Shift Code *</label><input id="shiftCode" required maxlength="50" placeholder="1"></div><div class="field"><label>Shift Name *</label><input id="shiftName" required maxlength="150" placeholder="First Shift"></div><div class="field"><label>Start *</label><input id="shiftStart" type="time" required></div><div class="field"><label>End *</label><input id="shiftEnd" type="time" required></div><div class="field"><label>Excluded Planned Time (minutes)</label><input id="shiftExcluded" type="number" min="0" step="0.01" value="0"></div></div><div class="actions"><button class="primary" type="submit" id="shiftSubmit">Save Shift</button></div><div id="shiftMessage" class="status"></div></form></div><div class="section-title"><div><h2>Registered Shifts</h2><p>Company-scoped master data.</p></div><button id="reloadShifts" class="secondary">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Start</th><th>End</th><th>Excluded Planned Time</th><th>Actions</th></tr></thead><tbody id="shiftsBody"><tr><td colspan="6">Loading shifts...</td></tr></tbody></table></div>`}
 let editingShiftId=null;
 function setShiftMessage(text,type=''){const el=document.getElementById('shiftMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
 function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
@@ -465,7 +467,16 @@ function startEdit(s){editingShiftId=s.id;document.getElementById('shiftCode').v
 function cancelEdit(){editingShiftId=null;const f=document.getElementById('shiftForm');f.reset();document.getElementById('shiftExcluded').value=0;document.getElementById('shiftFormTitle').textContent='Add Shift';document.getElementById('shiftFormDesc').textContent='All shifts are linked to the active company.';document.getElementById('shiftSubmit').textContent='Save Shift';document.getElementById('cancelEdit').style.display='none';setShiftMessage('');}
 async function saveShift(e){e.preventDefault();if(!sb||!activeCompanyId)return setShiftMessage('Supabase configuration or active company is missing.','error');const payload={company_id:activeCompanyId,code:document.getElementById('shiftCode').value.trim(),name:document.getElementById('shiftName').value.trim(),start_time:document.getElementById('shiftStart').value,end_time:document.getElementById('shiftEnd').value,excluded_planned_minutes:Number(document.getElementById('shiftExcluded').value||0)};if(!payload.code||!payload.name||!payload.start_time||!payload.end_time)return setShiftMessage('Please complete all required fields.','error');setShiftMessage(editingShiftId?'Updating shift...':'Saving shift...');let result;if(editingShiftId)result=await sb.from('shifts').update({code:payload.code,name:payload.name,start_time:payload.start_time,end_time:payload.end_time,excluded_planned_minutes:payload.excluded_planned_minutes}).eq('id',editingShiftId).eq('company_id',activeCompanyId);else result=await sb.from('shifts').insert(payload);if(result.error)return setShiftMessage(result.error.message,'error');setShiftMessage(editingShiftId?'Shift updated successfully.':'Shift saved successfully.','success');cancelEdit();await loadShifts();}
 async function deleteShift(id){if(!confirm('Delete this shift? This action cannot be undone.'))return;const {error}=await sb.from('shifts').delete().eq('id',id).eq('company_id',activeCompanyId);if(error){alert(error.message);return;}if(editingShiftId===id)cancelEdit();await loadShifts();}
-function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;loadShifts();}
+async function loadCompanyIdentity(){
+  const name=document.getElementById('companyIdentityName'),code=document.getElementById('companyIdentityCode'),sub=document.getElementById('companyIdentitySubdomain'),url=document.getElementById('companyPortalUrl');
+  if(!name||!code||!sub||!activeCompanyId)return;
+  const {data,error}=await sb.from('companies').select('name,code,subdomain').eq('id',activeCompanyId).single();
+  if(error){setCompanyIdentityMessage(error.message,'error');return;}
+  name.value=data.name||'';code.value=data.code||'';sub.value=data.subdomain||'';url.textContent=data.subdomain?`Portal URL: https://${data.subdomain}.${GUVEL_BASE_DOMAIN}`:'Portal URL: not configured yet';
+}
+function setCompanyIdentityMessage(text,type=''){const el=document.getElementById('companyIdentityMessage');if(el){el.textContent=text;el.className=`status ${type}`;}}
+async function saveCompanyIdentity(e){e.preventDefault();if(!['owner'].includes(currentUserRole()))return setCompanyIdentityMessage('Only the company owner can change company identity.','error');const name=document.getElementById('companyIdentityName').value.trim(),code=document.getElementById('companyIdentityCode').value.trim(),sub=document.getElementById('companyIdentitySubdomain').value.trim().toLowerCase();if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(sub))return setCompanyIdentityMessage('Subdomain must use lowercase letters, numbers and internal hyphens only.','error');setCompanyIdentityMessage('Saving...');const {data,error}=await sb.from('companies').update({name,code,subdomain:sub}).eq('id',activeCompanyId).select('name,code,subdomain').single();if(error)return setCompanyIdentityMessage(error.message,'error');window.GUVEL_CURRENT_COMPANY={...(window.GUVEL_CURRENT_COMPANY||{}),...data};document.getElementById('companyBadge').textContent=`${data.name} · ${currentUserRole()}`;document.getElementById('companyPortalUrl').textContent=`Portal URL: https://${data.subdomain}.${GUVEL_BASE_DOMAIN}`;setCompanyIdentityMessage('Company identity saved successfully.','success');}
+function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;const f=document.getElementById('companyIdentityForm');if(f)f.onsubmit=saveCompanyIdentity;loadCompanyIdentity();loadShifts();}
 
 function customersPage(){
   return head('Customers','Create and maintain customer master data. Every customer belongs to the active company.')
@@ -1163,7 +1174,7 @@ async function createInvitation(){
     }
 
     // Build the invitation URL without mutating the current page state.
-    const inviteLink=`${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(token)}`;
+    const inviteLink=buildInvitationLink(token,window.GUVEL_CURRENT_COMPANY?.subdomain||'');
 
     // IMPORTANT: show Success immediately after the successful RPC.
     // The delivery layer (Hostinger/Resend) is intentionally separate from this transaction.
@@ -1238,8 +1249,46 @@ async function render(){
 }
 document.getElementById('refreshBtn').onclick=()=>{if(current==='Dashboard')loadDashboardData(true);else if(current==='Registers')loadRegisters(true);else render();};
 
+/* ===== GUVEL Operational Phase 2.0.6 — Multi-Tenant Domain Routing ===== */
+const GUVEL_PLATFORM_HOST='operational.guvelsystems.com';
+const GUVEL_BASE_DOMAIN='guvelsystems.com';
 let activeCompanyId=null;
 let currentUser=null;
+let tenantCompanyContext=null;
+
+function getTenantSubdomainFromHost(){
+  const host=(window.location.hostname||'').toLowerCase().replace(/:\d+$/,'');
+  if(!host || host==='localhost' || /^127\.0\.0\.1$/.test(host)) return '';
+  if(host===GUVEL_PLATFORM_HOST || host==='www.'+GUVEL_BASE_DOMAIN || host===GUVEL_BASE_DOMAIN) return '';
+  if(host.endsWith('.'+GUVEL_BASE_DOMAIN)){
+    const sub=host.slice(0,-('.'+GUVEL_BASE_DOMAIN).length).trim();
+    if(sub && !sub.includes('.')) return sub;
+  }
+  return '';
+}
+function isProductionPortalHost(){return (window.location.hostname||'').toLowerCase()===GUVEL_PLATFORM_HOST;}
+function buildPortalOrigin(subdomain=''){
+  const clean=String(subdomain||'').trim().toLowerCase();
+  if(clean) return `https://${clean}.${GUVEL_BASE_DOMAIN}`;
+  if(isProductionPortalHost()) return window.location.origin;
+  return 'https://'+GUVEL_PLATFORM_HOST;
+}
+function buildInvitationLink(token,subdomain=''){
+  const origin=buildPortalOrigin(subdomain);
+  return `${origin}/?invite=${encodeURIComponent(token)}`;
+}
+async function resolveTenantCompany(){
+  const subdomain=getTenantSubdomainFromHost();
+  tenantCompanyContext=null;
+  if(!subdomain) return null;
+  const {data,error}=await sb.rpc('resolve_company_subdomain',{target_subdomain:subdomain});
+  if(error) throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row) throw new Error('This GUVEL company address is not registered or is unavailable.');
+  tenantCompanyContext=row;
+  return row;
+}
+
 
 let pendingInvitationToken='';
 function getInvitationTokenFromUrl(){try{return (new URLSearchParams(window.location.search).get('invite')||'').trim();}catch{return '';}}
@@ -1282,8 +1331,8 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const confirmationRedirectUrl=(()=>{try{const u=new URL(window.location.href);u.searchParams.set('invite',pendingInvitationToken);return u.toString();}catch{return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(pendingInvitationToken)}`;}})();
-    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:confirmationRedirectUrl}});
+    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
     if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
@@ -1300,6 +1349,9 @@ async function bootstrapInvitationFlow(){
   if(!pendingInvitationToken)return false;
   localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
   bindInviteScreen();
+  if(getTenantSubdomainFromHost()){
+    try{await resolveTenantCompany();}catch(e){showInviteScreen(e.message||'This company address is unavailable.',true);return true;}
+  }
   const {data:{session}}=await sb.auth.getSession();
   if(session){currentUser=session.user;showInviteScreen('Validating your invitation...');return await acceptPendingInvitation();}
   showInviteScreen('Enter your invited email and create your GUVEL account to continue.');
@@ -1315,15 +1367,26 @@ function showAuth(message=''){
 }
 function showApp(){document.getElementById('authScreen').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.body.classList.add('app-active');}
 async function loadMembership(){
-  const {data,error}=await sb.from('company_members').select('company_id, role, companies(name,code)').eq('user_id',currentUser.id).eq('is_active',true).order('created_at',{ascending:true});
+  let query=sb.from('company_members').select('company_id, role, companies(name,code,subdomain)').eq('user_id',currentUser.id).eq('is_active',true);
+  if(tenantCompanyContext?.id) query=query.eq('company_id',tenantCompanyContext.id);
+  const {data,error}=await query.order('created_at',{ascending:true});
   if(error) throw error;
-  if(!data || !data.length) return null;
-  const m=data[0]; activeCompanyId=m.company_id; window.GUVEL_CURRENT_MEMBERSHIP=m;
+  if(!data || !data.length){
+    if(tenantCompanyContext) throw new Error(`Your account does not have active access to ${tenantCompanyContext.name||'this company'}.`);
+    return null;
+  }
+  const m=data[0];
+  activeCompanyId=m.company_id;
+  window.GUVEL_CURRENT_MEMBERSHIP=m;
+  window.GUVEL_CURRENT_COMPANY=m.companies||null;
   document.getElementById('companyBadge').textContent=(m.companies?.name||'Company')+' · '+m.role;
   return m;
 }
 async function bootstrapSession(){
   if(!sb){showAuth('Supabase configuration is missing.');return;}
+  try{
+    if(getTenantSubdomainFromHost()) await resolveTenantCompany();
+  }catch(e){showAuth(e.message||'This company address is unavailable.');return;}
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showAuth();return;}
   currentUser=session.user;
@@ -1342,9 +1405,9 @@ function showCompanySetup(){
   showAuth();
 }
 async function login(e){e.preventDefault(); const email=document.getElementById('loginEmail').value.trim(), password=document.getElementById('loginPassword').value; const r=await sb.auth.signInWithPassword({email,password}); if(r.error)return authMsg(r.error.message,true); currentUser=r.data.user; await bootstrapSession();}
-async function signup(e){e.preventDefault(); const full_name=document.getElementById('signupName').value.trim(), email=document.getElementById('signupEmail').value.trim(), password=document.getElementById('signupPassword').value; const r=await sb.auth.signUp({email,password,options:{data:{full_name},emailRedirectTo:`${window.location.origin}${window.location.pathname}`}}); if(r.error)return authMsg(r.error.message,true); if(!r.data.session){authMsg('Account created. Check your email to confirm the account, then sign in.',false);return;} currentUser=r.data.user; await bootstrapSession();}
+async function signup(e){e.preventDefault(); const full_name=document.getElementById('signupName').value.trim(), email=document.getElementById('signupEmail').value.trim(), password=document.getElementById('signupPassword').value; const r=await sb.auth.signUp({email,password,options:{data:{full_name}}}); if(r.error)return authMsg(r.error.message,true); if(!r.data.session){authMsg('Account created. Check your email to confirm the account, then sign in.',false);return;} currentUser=r.data.user; await bootstrapSession();}
 function authMsg(msg,error=false){const el=document.getElementById('authMessage');el.textContent=msg;el.className='auth-message '+(error?'error':'success');}
-async function createCompany(e){e.preventDefault(); const name=document.getElementById('newCompanyName').value.trim(), code=document.getElementById('newCompanyCode').value.trim(); if(!name||!code)return authMsg('Company name and code are required.',true); const {data,error}=await sb.from('companies').insert({name,code,created_by:currentUser.id}).select().single(); if(error)return authMsg(error.message,true); activeCompanyId=data.id; await loadMembership(); showApp(); renderNav(); render();}
+async function createCompany(e){e.preventDefault(); const name=document.getElementById('newCompanyName').value.trim(), code=document.getElementById('newCompanyCode').value.trim(), subdomain=document.getElementById('newCompanySubdomain')?.value.trim().toLowerCase()||''; if(!name||!code||!subdomain)return authMsg('Company name, code and subdomain are required.',true); if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdomain))return authMsg('Subdomain must use lowercase letters, numbers and internal hyphens only.',true); const {data,error}=await sb.from('companies').insert({name,code,subdomain,created_by:currentUser.id}).select().single(); if(error)return authMsg(error.message,true); activeCompanyId=data.id; await loadMembership(); showApp(); renderNav(); render();}
 async function logout(){await sb.auth.signOut();activeCompanyId=null;currentUser=null;showAuth('Signed out successfully.');}
 function bindAuth(){
  document.getElementById('loginForm').onsubmit=login; document.getElementById('signupForm').onsubmit=signup; document.getElementById('companySetup').onsubmit=createCompany;
