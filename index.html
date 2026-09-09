@@ -1,4 +1,20 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GUVEL Operational — Smarter Industrial Systems</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Quattrocento:wght@400;700&display=swap" rel="stylesheet"><link rel="icon" type="image/png" href="assets/guvel-logo.png"><link rel="apple-touch-icon" href="assets/guvel-logo.png"><link rel="stylesheet" href="css/style.css"></head><body>
+<section id="inviteScreen" class="auth-screen hidden">
+  <div class="auth-card invite-onboarding-card">
+    <div class="brand auth-brand"><img class="brand-logo" src="assets/guvel-logo.png" alt="GUVEL"><div><strong>GUVEL</strong><small>OPERATIONAL</small></div></div>
+    <div class="eyebrow">SECURE INVITATION</div><h1>Join your company</h1>
+    <p>You have been invited to access GUVEL Operational. Create your account using the email address that received this invitation.</p>
+    <div id="inviteMessage" class="auth-message"></div>
+    <form id="inviteSignupForm" class="auth-form">
+      <label>Full Name<input id="inviteSignupName" required autocomplete="name"></label>
+      <label>Invited Email<input id="inviteSignupEmail" type="email" required autocomplete="email"></label>
+      <label>Password<input id="inviteSignupPassword" type="password" minlength="6" required autocomplete="new-password"></label>
+      <button class="primary" type="submit">Create Account & Join</button>
+    </form>
+    <div id="inviteExistingAccount" class="invite-existing-account"><p>Already have a GUVEL account?</p><button id="inviteGoLogin" class="secondary" type="button">Sign In & Accept Invitation</button></div>
+    <div class="auth-foot">GUVEL Smarter Industrial Systems · Secure Invitation</div>
+  </div>
+</section>
 <section id="authScreen" class="auth-screen">
   <div class="auth-card">
     <div class="brand auth-brand"><img class="brand-logo" src="assets/guvel-logo.png" alt="GUVEL"><div><strong>GUVEL</strong><small>OPERATIONAL</small></div></div>
@@ -15,5 +31,5 @@
 <header class="topbar"><div class="brand"><img class="brand-logo" src="assets/guvel-logo.png" alt="GUVEL"><div><strong>GUVEL</strong><small>OPERATIONAL</small></div></div><nav id="nav" class="top-nav" aria-label="Primary navigation"></nav><div class="top-actions"><span id="companyBadge">Loading company...</span><button id="refreshBtn">Refresh</button><button id="logoutBtn" class="secondary">Logout</button></div></header>
 <main class="content"><section id="view"></section></main><div id="laserCursor" aria-hidden="true"></div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script src="js/config.js"></script><script src="js/app.js?v=GUVEL-2-0-4-HF3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script src="js/config.js"></script><script src="js/app.js?v=GUVEL-2-0-5"></script>
 </body></html>

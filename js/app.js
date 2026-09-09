@@ -1164,32 +1164,28 @@ async function createInvitation(){
       throw new Error('The invitation was created, but the server did not return the invitation token. Please do not create another invitation; contact the system administrator.');
     }
 
-    msg.className='status success';
-    msg.innerHTML=`<strong>Invitation created.</strong><div class="invite-token-box"><input id="copyInviteTokenValue" type="text" readonly value="${escapeHtml(token)}" aria-label="Invitation token"><button class="secondary" id="copyInviteToken" type="button">Copy Token</button></div><small>Share this token securely with the invited user. It is returned only once by the invitation function.</small>`;
+    const invitationUrl=new URL(window.location.href);
+    invitationUrl.search='';
+    invitationUrl.hash='';
+    invitationUrl.searchParams.set('invite',token);
+    const inviteLink=invitationUrl.toString();
 
-    const tokenInput=document.getElementById('copyInviteTokenValue');
-    const copyBtn=document.getElementById('copyInviteToken');
-    copyBtn?.addEventListener('click',async()=>{
+    msg.className='status success';
+    msg.innerHTML=`<strong>Invitation created.</strong><div class="invite-token-box invite-link-box"><input id="copyInviteLinkValue" type="text" readonly value="${escapeHtml(inviteLink)}" aria-label="Invitation link"><button class="secondary" id="copyInviteLink" type="button">Copy Invitation Link</button></div><details class="invite-token-details"><summary>Technical token</summary><div class="invite-token-box"><input id="copyInviteTokenValue" type="text" readonly value="${escapeHtml(token)}" aria-label="Invitation token"><button class="secondary" id="copyInviteToken" type="button">Copy Token</button></div></details><small>The invitation link is the value intended for the personalized email. The raw token is shown only for administrative troubleshooting.</small>`;
+
+    const copyValue=async(value,button,label)=>{
       try{
-        tokenInput.focus();
-        tokenInput.select();
-        tokenInput.setSelectionRange(0,tokenInput.value.length);
+        const ta=document.createElement('textarea'); ta.value=value; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
         let copied=false;
-        if(navigator.clipboard?.writeText){
-          try{await navigator.clipboard.writeText(tokenInput.value);copied=true;}catch{}
-        }
-        if(!copied){
-          copied=document.execCommand('copy');
-        }
+        if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(value);copied=true;}catch{}}
+        if(!copied)copied=document.execCommand('copy');
+        ta.remove();
         if(!copied)throw new Error('Clipboard copy failed');
-        copyBtn.textContent='Copied';
-        setTimeout(()=>{copyBtn.textContent='Copy Token';},1600);
-      }catch(err){
-        console.error('GUVEL copy token failed:',err);
-        copyBtn.textContent='Copy failed';
-        setTimeout(()=>{copyBtn.textContent='Copy Token';},1800);
-      }
-    });
+        button.textContent='Copied'; setTimeout(()=>{button.textContent=label;},1600);
+      }catch(err){ console.error('GUVEL copy failed:',err); button.textContent='Copy failed'; setTimeout(()=>{button.textContent=label;},1800); }
+    };
+    document.getElementById('copyInviteLink')?.addEventListener('click',()=>copyValue(inviteLink,document.getElementById('copyInviteLink'),'Copy Invitation Link'));
+    document.getElementById('copyInviteToken')?.addEventListener('click',()=>copyValue(token,document.getElementById('copyInviteToken'),'Copy Token'));
   }catch(e){
     msg.className='status error';
     msg.textContent=e.message||'Unable to create invitation.';
@@ -1231,6 +1227,72 @@ document.getElementById('refreshBtn').onclick=()=>{if(current==='Dashboard')load
 
 let activeCompanyId=null;
 let currentUser=null;
+
+let pendingInvitationToken='';
+function getInvitationTokenFromUrl(){try{return (new URLSearchParams(window.location.search).get('invite')||'').trim();}catch{return '';}}
+function showInviteScreen(message='',error=false){
+  const screen=document.getElementById('inviteScreen'), auth=document.getElementById('authScreen');
+  if(!screen)return;
+  auth?.classList.add('hidden'); screen.classList.remove('hidden');
+  const msg=document.getElementById('inviteMessage'); if(msg){msg.textContent=message;msg.className='auth-message '+(error?'error':'success');}
+}
+function hideInviteScreen(){document.getElementById('inviteScreen')?.classList.add('hidden');}
+function clearInvitationUrl(){try{const u=new URL(window.location.href);u.searchParams.delete('invite');history.replaceState({},document.title,u.pathname+u.search+u.hash);}catch{}}
+async function acceptPendingInvitation(){
+  const token=pendingInvitationToken||localStorage.getItem('guvel_pending_invitation_token')||'';
+  if(!token||!currentUser)return false;
+  try{
+    const {data,error}=await sb.rpc('accept_company_invitation',{target_invitation_token:token});
+    if(error)throw error;
+    pendingInvitationToken='';localStorage.removeItem('guvel_pending_invitation_token');clearInvitationUrl();
+    currentUser=(await sb.auth.getUser()).data.user||currentUser;
+    const membership=await loadMembership();
+    if(!membership)throw new Error('Invitation accepted, but company membership could not be loaded.');
+    hideInviteScreen();showApp();renderNav();render();
+    return true;
+  }catch(e){
+    const msg=document.getElementById('inviteMessage');
+    if(msg){msg.textContent=e.message||'Unable to accept this invitation.';msg.className='auth-message error';}
+    return false;
+  }
+}
+async function inviteSignup(e){
+  e.preventDefault();
+  const name=document.getElementById('inviteSignupName').value.trim();
+  const email=document.getElementById('inviteSignupEmail').value.trim().toLowerCase();
+  const password=document.getElementById('inviteSignupPassword').value;
+  const msg=document.getElementById('inviteMessage');
+  const btn=e.submitter||document.querySelector('#inviteSignupForm button[type="submit"]');
+  pendingInvitationToken=pendingInvitationToken||getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
+  if(!pendingInvitationToken)return showInviteScreen('This invitation link is missing or invalid.',true);
+  localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
+  if(!email||!password||!name)return;
+  btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
+  try{
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name}}});
+    if(r.error)throw r.error;
+    if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
+    if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
+    document.getElementById('inviteSignupForm')?.classList.add('hidden');
+  }catch(err){if(msg){msg.textContent=err.message||'Unable to create your account.';msg.className='auth-message error';}}
+  finally{btn.disabled=false;}
+}
+function bindInviteScreen(){
+  const form=document.getElementById('inviteSignupForm'); if(form)form.onsubmit=inviteSignup;
+  const login=document.getElementById('inviteGoLogin'); if(login)login.onclick=()=>{hideInviteScreen();showAuth();document.getElementById('loginEmail').value=document.getElementById('inviteSignupEmail')?.value||'';};
+}
+async function bootstrapInvitationFlow(){
+  pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
+  if(!pendingInvitationToken)return false;
+  localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
+  bindInviteScreen();
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){currentUser=session.user;showInviteScreen('Validating your invitation...');return await acceptPendingInvitation();}
+  showInviteScreen('Enter your invited email and create your GUVEL account to continue.');
+  const savedEmail=new URLSearchParams(window.location.search).get('email');
+  if(savedEmail)document.getElementById('inviteSignupEmail').value=savedEmail;
+  return true;
+}
 
 function showAuth(message=''){
   document.getElementById('app').classList.add('hidden');
@@ -1746,9 +1808,17 @@ function bindRegisters(){
 }
 
 /* ===== GUARANTEED APPLICATION STARTUP — HOTFIX 2 ===== */
-window.addEventListener('DOMContentLoaded',()=>{
+window.addEventListener('DOMContentLoaded',async()=>{
   bindAuth();
-  bootstrapSession();
+  if(!sb){bootstrapSession();return;}
+  const inviteHandled=await bootstrapInvitationFlow();
+  if(!inviteHandled)bootstrapSession();
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(session&&pendingInvitationToken&&!document.getElementById('inviteScreen')?.classList.contains('hidden')){
+      currentUser=session.user;
+      setTimeout(()=>acceptPendingInvitation(),0);
+    }
+  });
 });
 /* GUVEL cursor — desktop only */
 (()=>{
