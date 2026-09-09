@@ -1282,7 +1282,8 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name}}});
+    const confirmationRedirectUrl=(()=>{try{const u=new URL(window.location.href);u.searchParams.set('invite',pendingInvitationToken);return u.toString();}catch{return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(pendingInvitationToken)}`;}})();
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:confirmationRedirectUrl}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
     if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
@@ -1341,7 +1342,7 @@ function showCompanySetup(){
   showAuth();
 }
 async function login(e){e.preventDefault(); const email=document.getElementById('loginEmail').value.trim(), password=document.getElementById('loginPassword').value; const r=await sb.auth.signInWithPassword({email,password}); if(r.error)return authMsg(r.error.message,true); currentUser=r.data.user; await bootstrapSession();}
-async function signup(e){e.preventDefault(); const full_name=document.getElementById('signupName').value.trim(), email=document.getElementById('signupEmail').value.trim(), password=document.getElementById('signupPassword').value; const r=await sb.auth.signUp({email,password,options:{data:{full_name}}}); if(r.error)return authMsg(r.error.message,true); if(!r.data.session){authMsg('Account created. Check your email to confirm the account, then sign in.',false);return;} currentUser=r.data.user; await bootstrapSession();}
+async function signup(e){e.preventDefault(); const full_name=document.getElementById('signupName').value.trim(), email=document.getElementById('signupEmail').value.trim(), password=document.getElementById('signupPassword').value; const r=await sb.auth.signUp({email,password,options:{data:{full_name},emailRedirectTo:`${window.location.origin}${window.location.pathname}`}}); if(r.error)return authMsg(r.error.message,true); if(!r.data.session){authMsg('Account created. Check your email to confirm the account, then sign in.',false);return;} currentUser=r.data.user; await bootstrapSession();}
 function authMsg(msg,error=false){const el=document.getElementById('authMessage');el.textContent=msg;el.className='auth-message '+(error?'error':'success');}
 async function createCompany(e){e.preventDefault(); const name=document.getElementById('newCompanyName').value.trim(), code=document.getElementById('newCompanyCode').value.trim(); if(!name||!code)return authMsg('Company name and code are required.',true); const {data,error}=await sb.from('companies').insert({name,code,created_by:currentUser.id}).select().single(); if(error)return authMsg(error.message,true); activeCompanyId=data.id; await loadMembership(); showApp(); renderNav(); render();}
 async function logout(){await sb.auth.signOut();activeCompanyId=null;currentUser=null;showAuth('Signed out successfully.');}
