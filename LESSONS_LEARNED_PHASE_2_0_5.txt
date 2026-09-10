@@ -1,0 +1,10 @@
+GUVEL Operational — LESSONS LEARNED — Phase 2.0.5
+
+1. A token is an implementation detail; the user-facing artifact should be an invitation link.
+2. Supabase SECURITY DEFINER RPC remains the membership authority.
+3. Static GitHub Pages cannot safely hold provider API secrets.
+4. Resend API calls must remain server-side.
+5. Hostinger delivery integration should be authenticated server-to-server.
+6. Invitation onboarding must not merge Users and Personnel.
+7. Preserve the token until acceptance is complete, including account-confirmation flows.
+8. Do not create a second invitation simply because an acceptance attempt fails; surface the exact backend condition.

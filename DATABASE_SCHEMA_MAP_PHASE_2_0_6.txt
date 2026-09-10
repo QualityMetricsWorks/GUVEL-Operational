@@ -1,0 +1,15 @@
+DATABASE SCHEMA MAP — PHASE 2.0.6
+
+companies
+- id uuid PK
+- name text
+- code text
+- subdomain text NULLABLE, unique case-insensitively when present
+- created_at
+- created_by
+- updated_at
+
+No new table. No new foreign key.
+
+Routing identity: companies.subdomain → company.id.
+Security identity remains company_members.company_id + RLS.

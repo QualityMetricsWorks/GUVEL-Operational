@@ -1,0 +1,32 @@
+GUVEL Operational — USER ACCEPTANCE TEST — Phase 2.0.5
+
+A. ADMIN INVITATION
+[ ] Users > Invitations loads.
+[ ] Invite User creates one invitation.
+[ ] Invitation Link is populated.
+[ ] Copy Invitation Link works.
+[ ] Technical token remains available only as troubleshooting data.
+
+B. NEW INVITED USER
+[ ] Open invitation link in private/incognito browser.
+[ ] Onboarding screen appears.
+[ ] Enter exact invited email.
+[ ] Create account.
+[ ] If email confirmation is required, confirm email and return to invitation link.
+[ ] Invitation is accepted automatically when an authenticated session exists.
+[ ] User enters the invited company.
+[ ] Assigned role is correct.
+
+C. SECURITY
+[ ] Wrong email cannot accept invitation.
+[ ] Expired invitation cannot be accepted.
+[ ] Revoked invitation cannot be accepted.
+[ ] Invalid token cannot be accepted.
+[ ] Already-active member cannot accept the same invitation.
+[ ] No browser-side direct insert into company_members occurs.
+[ ] Resend API key is absent from frontend files.
+
+D. EMAIL ARCHITECTURE
+[ ] Hostinger endpoint is configured only server-side.
+[ ] Resend API key is stored as a Hostinger secret/environment variable.
+[ ] Personalized email contains company name, role and invitation URL.

@@ -1,0 +1,13 @@
+GUVEL Operational — SECURITY MAP — Phase 2.0.5
+
+1. Tenant boundary remains company_id + active company membership.
+2. Browser does not INSERT directly into company_members.
+3. Invitation acceptance is performed only by SECURITY DEFINER accept_company_invitation(text).
+4. Backend validates token hash, invitation status, expiry and authenticated email match.
+5. Raw token is not stored in company_invitations.
+6. Frontend stores the pending token only until onboarding completes, then removes it.
+7. Resend API key MUST remain server-side on Hostinger.
+8. GitHub Pages must never contain Resend secrets.
+9. Personalized email delivery must be authenticated server-to-server in production.
+10. User role set remains owner/admin/manager/supervisor/viewer.
+11. Personnel roles remain operator/supervisor and are unrelated to User access roles.

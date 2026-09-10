@@ -1,0 +1,16 @@
+GUVEL Operational — Version History Phase 2.1
+
+Phase 2.1 — Cloudflare Tenant Gateway
+Status: PACKAGE PREPARED — NOT YET DEPLOYED
+
+Scope:
+- Add Worker runtime entrypoint.
+- Preserve existing static assets.
+- Prepare wildcard Worker Route for *.guvelsystems.com/*.
+- Preserve operational.guvelsystems.com Custom Domain.
+- Add reserved hostname handling.
+- Add corporate www redirect.
+- No Supabase schema changes.
+
+Previous baseline:
+Phase 2.0.6 Multi-Tenant Foundation

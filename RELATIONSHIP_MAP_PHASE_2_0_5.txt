@@ -1,0 +1,26 @@
+GUVEL Operational — RELATIONSHIP MAP — Phase 2.0.5
+
+INVITATION FLOW
+
+company
+  |
+  +--> company_invitations
+  |       |
+  |       +--> token_hash
+  |       +--> email
+  |       +--> role
+  |       +--> status / expires_at
+  |       +--> invited_by
+  |
+  +--> company_members
+          |
+          +--> auth.users
+          |
+          +--> profiles
+
+Acceptance path:
+Invitation URL -> authenticated auth.users identity -> accept_company_invitation(token)
+-> company_members -> loadMembership() -> GUVEL Operational
+
+Users != Personnel.
+Personnel is plant operational data only.

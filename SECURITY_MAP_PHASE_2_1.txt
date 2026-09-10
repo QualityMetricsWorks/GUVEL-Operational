@@ -1,0 +1,19 @@
+GUVEL Operational — Security Map Phase 2.1
+
+Edge layer
+- Cloudflare terminates TLS.
+- Wildcard routing is only transport/routing; it is not tenant authorization.
+- Reserved hostnames are blocked by the Worker.
+- www is redirected to the corporate apex.
+
+Application layer
+- Hostname-derived tenant context remains in the GUVEL frontend.
+- Tenant lookup uses the existing Supabase resolve_company_subdomain() RPC.
+
+Authorization layer
+- Supabase Auth remains the identity source.
+- company_members remains the membership source.
+- RBAC remains enforced by the existing role/permission model.
+- RLS remains the authoritative data isolation boundary.
+
+Do not add service-role credentials to the Worker or frontend.

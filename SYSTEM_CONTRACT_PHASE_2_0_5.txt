@@ -1,0 +1,25 @@
+GUVEL Operational — SYSTEM CONTRACT — Phase 2.0.5
+
+INPUT
+- Invitation URL containing the raw invitation token.
+
+ONBOARDING
+- If unauthenticated: create account with invited email.
+- If already authenticated: attempt acceptance immediately.
+- If email confirmation prevents a session: retain the pending token and finish after authentication is available.
+
+ACCEPTANCE
+- Call public.accept_company_invitation(target_invitation_token).
+- Do not directly write company_members from the frontend.
+
+SUCCESS
+- Load active company membership.
+- Enter normal GUVEL Operational application.
+- Clear invitation token from local storage and URL.
+
+FAILURE
+- Surface the RPC error without inventing alternate membership behavior.
+
+EMAIL DELIVERY
+- Invitation URL is the canonical personalized-email call-to-action.
+- Hostinger/Resend delivery is server-side and external to the GitHub Pages client.

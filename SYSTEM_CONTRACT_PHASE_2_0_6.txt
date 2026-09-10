@@ -1,0 +1,13 @@
+SYSTEM CONTRACT — PHASE 2.0.6
+
+Portal hosts
+- operational.guvelsystems.com = general GUVEL Operational entry point
+- {company}.guvelsystems.com = tenant-specific entry point
+- guvelsystems.com = corporate website
+
+Rules
+- A tenant hostname resolves to exactly one company subdomain.
+- A logged-in user may access the tenant only if active membership exists for that company.
+- RLS remains authoritative for all data access.
+- Invitation links use the invited company's subdomain when configured.
+- Email confirmation redirects back to the tenant invitation URL.

@@ -1,0 +1,43 @@
+GUVEL Operational — Cloudflare Phase 2.1 Setup
+
+1. Git branch
+Create a test branch, for example:
+phase-2-1-cloudflare
+
+2. Deploy command
+Cloudflare Build Command: None
+Cloudflare Deploy Command: npx wrangler deploy
+
+3. DNS prerequisite for Route
+Create a proxied wildcard DNS record in the guvelsystems.com zone:
+Type: A
+Name: *
+IPv4: 192.0.2.0
+Proxy: Proxied
+TTL: Auto
+
+This is an originless placeholder. Because the record is proxied, requests are intercepted by Cloudflare and the Worker Route handles them.
+
+Do NOT create a CNAME to the workers.dev hostname.
+
+4. Worker route
+The wrangler configuration defines:
+*.guvelsystems.com/* -> guvel-operational Worker
+
+5. Existing production Custom Domain
+Keep:
+operational.guvelsystems.com -> guvel-operational Worker
+
+6. Test sequence
+A. https://operational.guvelsystems.com
+B. https://demo.guvelsystems.com
+C. https://www.guvelsystems.com
+D. https://guvelsystems.com
+E. unknown tenant, e.g. https://not-a-company.guvelsystems.com
+
+Expected:
+A = GUVEL Operational
+B = GUVEL Operational and frontend resolves tenant demo
+C = redirects to https://guvelsystems.com
+D = corporate site
+E = GUVEL app shell may load, but tenant resolution should reject unknown subdomain according to application logic. If desired, a future Worker enhancement can preflight tenant existence at the edge.

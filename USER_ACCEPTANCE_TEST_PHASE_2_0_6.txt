@@ -1,0 +1,31 @@
+USER ACCEPTANCE TEST — PHASE 2.0.6
+
+A. Platform host
+1. Open https://operational.guvelsystems.com/
+2. Login works.
+
+B. Company identity
+3. As Owner, open Settings.
+4. Set a unique subdomain such as demo.
+5. Save.
+6. Confirm the displayed URL is https://demo.guvelsystems.com
+
+C. Tenant routing
+7. Configure DNS/routing for the customer subdomain.
+8. Open https://demo.guvelsystems.com/
+9. Login with a member of that company.
+10. Confirm company badge is correct.
+11. Confirm data remains company-scoped.
+
+D. Cross-tenant protection
+12. Use a user not belonging to demo.
+13. Confirm access is denied on demo.guvelsystems.com.
+
+E. Invitation
+14. Create an invitation while demo subdomain is configured.
+15. Confirm the generated link starts with https://demo.guvelsystems.com/
+16. Create the invited account.
+17. Confirm email redirect returns to demo.guvelsystems.com/?invite=...
+18. Confirm invitation acceptance assigns the expected role.
+
+Do not declare Phase 2.0.6 CLOSED until A–E pass.

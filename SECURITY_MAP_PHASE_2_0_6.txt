@@ -1,0 +1,9 @@
+SECURITY MAP — PHASE 2.0.6
+
+1. Hostname is routing context, NOT authorization.
+2. The authenticated user must have an active company_members row for the resolved company.
+3. Existing RLS remains the final tenant boundary.
+4. resolve_company_subdomain exposes only id/name/code/subdomain required for routing.
+5. Invitation tokens remain one-time secrets; only token hash is persisted by the invitation backend.
+6. No Supabase service key or Resend API key is placed in frontend assets.
+7. Owner-only company identity update is enforced by existing Phase 2.0.2 permission-aware RLS.

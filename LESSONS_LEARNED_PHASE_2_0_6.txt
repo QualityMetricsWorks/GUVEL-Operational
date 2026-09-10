@@ -1,0 +1,7 @@
+LESSONS LEARNED — PHASE 2.0.6
+
+- Never use hostname alone as authorization.
+- Keep company_id as the authoritative tenant key.
+- Invitation URLs and Auth email redirects must use the same tenant origin.
+- Keep operational.guvelsystems.com as the platform entry point.
+- Keep Hostinger/Resend secrets server-side.

@@ -1,0 +1,1 @@
+NO SQL MIGRATION REQUIRED. Phase 2.0.5 reuses the validated Phase 2.0.3 invitation acceptance RPC.

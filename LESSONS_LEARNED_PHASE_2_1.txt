@@ -1,0 +1,7 @@
+GUVEL Operational — Lessons Learned Phase 2.1
+
+1. A Worker Custom Domain is not a wildcard tenant mechanism; Cloudflare Custom Domains require exact hostnames.
+2. Wildcard tenant routing belongs in a proxied DNS + Worker Route architecture, not a wildcard Custom Domain.
+3. Static Assets-only Workers cannot use Routes; adding a Worker entrypoint converts the deployment to Worker + Static Assets.
+4. operational.guvelsystems.com must remain the production rollback/custom-domain anchor during migration.
+5. The Worker must never become the authoritative authorization layer; Supabase Auth/RBAC/RLS remain authoritative.

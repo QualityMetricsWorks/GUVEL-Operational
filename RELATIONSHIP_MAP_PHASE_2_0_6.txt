@@ -1,0 +1,21 @@
+RELATIONSHIP MAP — PHASE 2.0.6
+
+Tenant hostname
+  ↓
+companies.subdomain
+  ↓
+companies.id
+  ↓
+company_members.company_id
+  ↓
+auth.uid()
+  ↓
+permissions / RLS
+
+Invitation
+  ↓
+company_invitations.company_id
+  ↓
+company subdomain
+  ↓
+https://{subdomain}.guvelsystems.com/?invite=TOKEN
