@@ -1,0 +1,31 @@
+GUVEL Operational — Security Map Phase 2.2
+
+1. Authentication
+- Supabase Auth remains the identity source.
+- Company creation requires auth.uid().
+
+2. Company Provisioning
+- New company provisioning uses create_company_for_current_user().
+- The function is SECURITY DEFINER but validates the caller through auth.uid().
+- A caller with an existing active company membership cannot use the initial Company Setup provisioning path.
+- Owner membership is created for the authenticated creator.
+- No browser INSERT into company_members is introduced.
+
+3. Tenant Subdomain Security
+- Subdomains must match the canonical lowercase hostname format.
+- Reserved infrastructure names are blocked at database level.
+- Database trigger prevents direct API updates from bypassing the reserved-name invariant.
+- Case-insensitive uniqueness remains enforced by the existing companies_subdomain_unique_idx.
+
+4. Company Identity
+- update_company_identity() requires active owner status through is_company_owner().
+- Company code uniqueness is validated case-insensitively before update.
+
+5. Tenant Resolution
+- resolve_company_subdomain() exposes only id/name/code/subdomain.
+- Reserved subdomains are not resolved.
+- Hostname is routing context, not authorization.
+- Supabase Auth + company_members + RBAC + RLS remain authoritative.
+
+6. Secrets
+- No Supabase service key, Resend API key, or other secret is added to frontend assets or Worker code.

@@ -1,0 +1,16 @@
+GUVEL Operational — System Contract Phase 2.1
+
+The Cloudflare Worker is an edge routing layer, not a business authorization layer.
+
+Input:
+HTTP request to guvelsystems.com or a first-level subdomain.
+
+Output:
+- Platform/tenant hostnames: GUVEL Operational static assets.
+- www: 301 redirect to corporate apex.
+- Reserved/unknown infrastructure hostnames: 404.
+
+Tenant security contract:
+Hostname identifies the requested tenant context only. Supabase Auth, company_members, RBAC, and RLS remain authoritative for identity, permissions, and data isolation.
+
+No database schema changes are introduced by Phase 2.1.

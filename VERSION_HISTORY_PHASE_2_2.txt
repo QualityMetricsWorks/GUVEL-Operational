@@ -1,0 +1,30 @@
+GUVEL Operational — Version History Phase 2.2
+
+Phase 2.2 — Company / Tenant Provisioning Foundation
+Status: PACKAGE PREPARED — PENDING USER DEPLOYMENT / UAT
+Date: 2026-09-11
+
+Scope
+- Add secure company provisioning RPC.
+- Add subdomain availability validation.
+- Add database-level reserved subdomain protection.
+- Add owner-only company identity update RPC.
+- Harden tenant resolution against reserved hostnames.
+- Add missing Company Subdomain field to Company Setup UI.
+- Add live availability feedback to Company Setup.
+- Preserve Phase 2.1 Cloudflare gateway.
+
+Database impact
+- No new tables.
+- No new foreign keys.
+- Existing companies/company_members relationships preserved.
+- Additive functions + one companies subdomain validation trigger.
+
+Frontend impact
+- Company Setup now collects Company Subdomain.
+- Company creation uses create_company_for_current_user().
+- Settings identity update uses update_company_identity().
+- Availability feedback uses is_company_subdomain_available().
+
+Previous accepted baseline
+Phase 2.1 — Cloudflare Tenant Gateway — CLOSED / VALIDATED

@@ -1,0 +1,23 @@
+GUVEL Operational — DATABASE SCHEMA MAP — Phase 2.0.5
+
+No new tables.
+No new columns.
+No new foreign keys.
+No operational data changes.
+
+Authoritative invitation objects reused:
+- public.company_invitations
+- public.company_members
+- public.profiles
+- auth.users
+
+Authoritative RPC reused:
+- public.accept_company_invitation(text)
+
+Invitation lifecycle remains:
+pending -> accepted
+pending -> revoked
+pending -> expired
+
+Raw invitation token remains transient and is not stored in plain text.
+company_invitations stores token_hash only.

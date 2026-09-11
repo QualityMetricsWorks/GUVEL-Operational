@@ -1,0 +1,11 @@
+GUVEL Operational — Relationship Map Phase 2.1
+
+Cloudflare hostname
+    -> Worker
+    -> GUVEL Operational assets
+    -> frontend hostname parsing
+    -> resolve_company_subdomain(subdomain)
+    -> companies.id
+    -> company_members / RBAC / RLS
+
+No new database relationship is introduced.

@@ -1,0 +1,8 @@
+GUVEL Operational — Lessons Learned Phase 2.2
+
+1. The previous Company Setup UI referenced newCompanySubdomain but the HTML form did not actually contain that field. Phase 2.2 corrects this mismatch.
+2. Direct client INSERT into companies relied on RLS plus a trigger. Provisioning is now explicit through a controlled RPC while preserving the existing trigger as a compatibility/idempotency layer.
+3. Subdomain uniqueness alone is insufficient; platform-reserved hostnames must also be blocked.
+4. Client-side availability checks improve UX, but database-level validation is required because browser validation can always be bypassed.
+5. Tenant hostname routing must remain separate from authorization. The Worker routes requests; Supabase decides whether a user can access the resolved company.
+6. Existing tenant relationships are preserved; Phase 2.2 adds functions and a trigger rather than introducing duplicate company tables.

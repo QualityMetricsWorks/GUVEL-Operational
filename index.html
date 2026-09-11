@@ -22,7 +22,7 @@
     <div id="authMessage" class="auth-message"></div>
     <form id="loginForm" class="auth-form"><label>Email<input id="loginEmail" type="email" required autocomplete="email"></label><label>Password<input id="loginPassword" type="password" required autocomplete="current-password"></label><button class="primary" type="submit">Sign In</button><button id="showSignup" class="link-btn" type="button">Create account</button></form>
     <form id="signupForm" class="auth-form hidden"><label>Full Name<input id="signupName" required></label><label>Email<input id="signupEmail" type="email" required autocomplete="email"></label><label>Password<input id="signupPassword" type="password" minlength="6" required autocomplete="new-password"></label><button class="primary" type="submit">Create Account</button><button id="showLogin" class="link-btn" type="button">I already have an account</button></form>
-    <form id="companySetup" class="auth-form hidden"><label>Company Name<input id="newCompanyName" required placeholder="My Manufacturing Company"></label><label>Company Code<input id="newCompanyCode" required maxlength="50" placeholder="MY-COMPANY"></label><button class="primary" type="submit">Create Company & Continue</button></form>
+    <form id="companySetup" class="auth-form hidden"><label>Company Name<input id="newCompanyName" required placeholder="My Manufacturing Company" maxlength="120"></label><label>Company Code<input id="newCompanyCode" required maxlength="50" placeholder="MY-COMPANY"></label><label>Company Subdomain<input id="newCompanySubdomain" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?" placeholder="my-company"><small class="auth-hint">Your portal will be: https://my-company.guvelsystems.com</small><div id="companySubdomainAvailability" class="auth-message"></div></label><button class="primary" type="submit">Create Company & Continue</button></form>
     <div class="auth-foot">GUVEL Smarter Industrial Systems · Operational Intelligence</div>
   </div>
 </section>
@@ -31,5 +31,5 @@
 <header class="topbar"><div class="brand"><img class="brand-logo" src="assets/guvel-logo.png" alt="GUVEL"><div><strong>GUVEL</strong><small>OPERATIONAL</small></div></div><nav id="nav" class="top-nav" aria-label="Primary navigation"></nav><div class="top-actions"><span id="companyBadge">Loading company...</span><button id="refreshBtn">Refresh</button><button id="logoutBtn" class="secondary">Logout</button></div></header>
 <main class="content"><section id="view"></section></main><div id="laserCursor" aria-hidden="true"></div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script src="js/config.js"></script><script src="js/app.js?v=GUVEL-2-0-6"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script><script src="js/config.js"></script><script src="js/app.js?v=GUVEL-2-2"></script>
 </body></html>

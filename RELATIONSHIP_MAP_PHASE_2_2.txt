@@ -1,0 +1,37 @@
+GUVEL Operational — Relationship Map Phase 2.2
+
+AUTHENTICATED USER
+    |
+    +--> auth.users.id
+            |
+            +--> create_company_for_current_user()
+                    |
+                    +--> companies.id
+                    |       |
+                    |       +--> companies.subdomain
+                    |       |       |
+                    |       |       +--> Cloudflare hostname
+                    |       |
+                    |       +--> company_members.company_id
+                    |
+                    +--> company_members.user_id
+                            |
+                            +--> owner / active
+
+TENANT ROUTING
+Cloudflare hostname
+    -> Worker
+    -> frontend hostname context
+    -> resolve_company_subdomain()
+    -> companies.id
+    -> company_members
+    -> RBAC / RLS
+
+COMPANY IDENTITY UPDATE
+Owner
+    -> update_company_identity()
+    -> companies.name/code/subdomain
+
+Important:
+- Subdomain identifies the tenant context; it is not the security boundary.
+- company_members + authenticated user + RLS remain the security boundary.

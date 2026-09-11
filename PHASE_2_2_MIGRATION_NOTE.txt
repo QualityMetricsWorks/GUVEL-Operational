@@ -1,0 +1,22 @@
+PHASE 2.2 MIGRATION NOTE
+
+This migration is additive.
+
+It does NOT:
+- drop tables
+- drop columns
+- change existing foreign keys
+- delete company data
+- change company_members role semantics
+- change Cloudflare configuration
+
+It adds:
+- subdomain validation trigger
+- reserved-name helper
+- availability helper
+- company provisioning RPC
+- company identity update RPC
+- hardened tenant resolution function
+
+The existing on_company_created trigger remains in place and is intentionally
+compatible with the new provisioning RPC.

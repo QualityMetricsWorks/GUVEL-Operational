@@ -1,0 +1,25 @@
+GUVEL Operational — System Contract Phase 2.2
+
+Objective
+Provide a controlled company/tenant provisioning foundation so an authenticated new account can create a company with a valid, available tenant address and become its Owner.
+
+Inputs
+- Authenticated user
+- Company name
+- Company code
+- Company subdomain
+
+Provisioning output
+- New companies row
+- Authenticated creator as active owner in company_members
+- Tenant address https://{subdomain}.guvelsystems.com
+
+Rules
+1. Company provisioning is transactional through create_company_for_current_user().
+2. New tenant subdomains are validated for syntax, reservation and uniqueness.
+3. Existing active company members cannot use the initial setup path to create another company.
+4. Company identity changes are owner-only through update_company_identity().
+5. Cloudflare provides routing only.
+6. Supabase Auth, company_members, RBAC and RLS remain the authorization/data-isolation boundary.
+7. No existing operational data relationship is changed.
+8. Existing demo tenant and current tenant routing remain compatible.

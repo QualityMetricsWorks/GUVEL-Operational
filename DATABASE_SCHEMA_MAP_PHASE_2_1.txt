@@ -1,0 +1,10 @@
+GUVEL Operational — Database Schema Map Phase 2.1
+
+No database changes.
+
+Existing Phase 2.0.6 tenant fields/functions remain authoritative:
+- companies.subdomain
+- companies_subdomain_unique_idx
+- resolve_company_subdomain(target_subdomain)
+
+Cloudflare does not store tenant records or permissions.

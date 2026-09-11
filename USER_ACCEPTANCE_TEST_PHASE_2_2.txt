@@ -1,0 +1,69 @@
+GUVEL Operational — Phase 2.2 UAT
+Company / Tenant Provisioning Foundation
+
+Precondition
+- Phase 2.1 remains operational.
+- Cloudflare wildcard DNS and Worker Route remain unchanged.
+- Supabase migration has been executed successfully.
+
+TEST 1 — Existing tenant regression
+URL: https://demo.guvelsystems.com/
+Expected: Login and existing GUVEL Demo Company access continue to work.
+
+TEST 2 — Production portal regression
+URL: https://operational.guvelsystems.com/
+Expected: Login, Dashboard, Settings and Users continue to work.
+
+TEST 3 — Company Setup field
+Using a newly authenticated account with no active company membership:
+Expected fields:
+- Company Name
+- Company Code
+- Company Subdomain
+
+TEST 4 — Subdomain validation
+Enter reserved values such as:
+- www
+- operational
+- api
+Expected: unavailable/reserved; company creation blocked.
+
+TEST 5 — Availability
+Enter a new unused value such as:
+- uat-2026
+Expected: available message and tenant URL preview.
+
+TEST 6 — Company provisioning
+Create the test company.
+Expected:
+- companies row created
+- authenticated creator is active Owner
+- subdomain stored
+- portal loads under https://uat-2026.guvelsystems.com
+
+TEST 7 — Tenant isolation
+Open the new tenant URL while authenticated.
+Expected: new company context is loaded; Demo Company data is not shown.
+
+TEST 8 — Existing demo tenant remains isolated
+Open https://demo.guvelsystems.com/
+Expected: Demo Company remains the context.
+
+TEST 9 — Settings identity update
+As Owner, change company name/code/subdomain to another unused UAT value.
+Expected: update succeeds and old subdomain no longer resolves to the company.
+
+TEST 10 — Non-owner protection
+As a non-owner member, attempt Company Identity update.
+Expected: denied.
+
+TEST 11 — Duplicate subdomain
+Attempt to assign an already-used subdomain.
+Expected: denied by availability check and database invariant.
+
+TEST 12 — Unknown tenant
+Open an unregistered first-level subdomain.
+Expected: tenant unavailable; no fallback to another company.
+
+FINAL ACCEPTANCE
+All required tests PASS before Phase 2.2 is formally closed.

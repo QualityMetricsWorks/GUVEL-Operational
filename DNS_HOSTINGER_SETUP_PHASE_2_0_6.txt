@@ -1,0 +1,14 @@
+HOSTINGER DNS / DEPLOYMENT NOTE — PHASE 2.0.6
+
+Goal:
+Customer URLs such as https://acme.guvelsystems.com must resolve to the same GUVEL Operational application.
+
+Recommended DNS architecture:
+- Keep operational.guvelsystems.com working as the general portal host.
+- Add wildcard DNS for *.guvelsystems.com pointing to the web endpoint/reverse proxy that serves GUVEL Operational.
+- The exact DNS record target depends on the Hostinger deployment method; do not guess the target.
+
+Important:
+GitHub Pages supports a custom domain for the site, but arbitrary customer subdomains require a routing layer that accepts the Host header and serves the same application. Hostinger can provide that routing layer.
+
+Do not delete the GitHub Pages deployment during migration.

@@ -1,0 +1,6 @@
+ROLE / PERMISSION MATRIX — PHASE 2.0.6
+
+No role or permission changes.
+Existing canonical roles remain: owner, admin, manager, supervisor, viewer.
+Company identity maintenance is owner-only through existing company security policy.
+Tenant routing does not grant permissions.

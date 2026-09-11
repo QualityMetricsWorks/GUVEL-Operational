@@ -1,0 +1,12 @@
+GUVEL Operational — ROLE / PERMISSION MATRIX — Phase 2.0.5
+
+No role or permission changes in this phase.
+
+owner       19 permissions
+admin       18 permissions
+manager     14 permissions
+supervisor   5 permissions
+viewer       3 permissions
+
+Invitation eligibility remains governed by users.invite.
+Invitation assignment cannot create owner membership.

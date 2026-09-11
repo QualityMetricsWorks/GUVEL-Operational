@@ -1,0 +1,12 @@
+GUVEL Operational — VERSION HISTORY — Phase 2.0.5
+
+2026-09-08/09 — Phase 2.0.5
+- Added invitation-link onboarding.
+- Added account creation from invitation context.
+- Added authenticated invitation acceptance flow.
+- Added persistent pending-token handling across email confirmation.
+- Added invitation URL generation to Users > Invitations.
+- Retained technical token as an administrative troubleshooting value.
+- Added Hostinger + Resend server-side delivery template.
+- No database schema changes.
+- No role/permission changes.

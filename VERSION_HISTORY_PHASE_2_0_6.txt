@@ -1,0 +1,10 @@
+VERSION HISTORY — PHASE 2.0.6
+
+2.0.6 — Multi-Tenant Domain & Company Routing
+- Added validated unique company subdomain contract.
+- Added secure company subdomain resolver RPC.
+- Added tenant-aware session routing.
+- Added tenant-specific invitation link construction.
+- Added tenant-specific email redirect for invitation signup.
+- Added owner company identity UI.
+- No role changes. No operational data migration.
