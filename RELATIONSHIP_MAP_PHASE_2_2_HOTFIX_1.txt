@@ -1,0 +1,2 @@
+Owner current company -> create_company_for_owner(source_company_id) -> new companies row -> company_members(owner) -> tenant subdomain -> Cloudflare Worker routing -> Supabase RLS.
+Active company is not switched by this hotfix.

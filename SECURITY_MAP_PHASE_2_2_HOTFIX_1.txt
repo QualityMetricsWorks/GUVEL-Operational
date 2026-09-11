@@ -1,0 +1,6 @@
+- create_company_for_owner is SECURITY DEFINER and executable only by authenticated.
+- Function verifies auth.uid() is an active Owner of source_company_id.
+- Browser never writes company_members directly.
+- company subdomain remains validated by trigger and availability RPC.
+- Company code is protected by a database unique index.
+- RLS remains the final tenant isolation boundary.

@@ -1,0 +1,5 @@
+2026-09-11 — Phase 2.2 Hotfix 1
+- Added owner-only additional company provisioning.
+- Added Settings UI and modal.
+- Preserved active company context.
+- Added company-code uniqueness invariant.

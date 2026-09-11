@@ -233,8 +233,90 @@ $$;
 revoke all on function public.update_company_identity(uuid,text,text,text) from public;
 grant execute on function public.update_company_identity(uuid,text,text,text) to authenticated;
 
+
 -- --------------------------------------------------------------------------
--- 6) Harden tenant resolution against reserved infrastructure names.
+-- 6) Owner-only additional company provisioning
+--    Preserves the onboarding RPC contract: existing members cannot use
+--    create_company_for_current_user(). Owners may create another tenant
+--    explicitly from Settings while remaining in the current active company.
+-- --------------------------------------------------------------------------
+create or replace function public.create_company_for_owner(
+  source_company_id uuid,
+  target_name text,
+  target_code text,
+  target_subdomain text
+)
+returns table(
+  id uuid,
+  name text,
+  code text,
+  subdomain text,
+  owner_user_id uuid,
+  source_company_id uuid
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_company_id uuid;
+  v_name text := trim(coalesce(target_name,''));
+  v_code text := trim(coalesce(target_code,''));
+  v_subdomain text := lower(trim(coalesce(target_subdomain,'')));
+begin
+  if v_user_id is null then
+    raise exception 'Authentication is required to create a company.' using errcode = '28000';
+  end if;
+
+  if source_company_id is null or not public.is_company_owner(source_company_id) then
+    raise exception 'Only the owner of the source company can create another company.' using errcode = '42501';
+  end if;
+
+  if v_name='' or length(v_name)>120 then
+    raise exception 'Company name is required and must not exceed 120 characters.' using errcode = '22023';
+  end if;
+
+  if v_code='' or length(v_code)>50 then
+    raise exception 'Company code is required and must not exceed 50 characters.' using errcode = '22023';
+  end if;
+
+  if v_subdomain='' or not public.is_company_subdomain_available(v_subdomain,null) then
+    raise exception 'The requested company address is unavailable or reserved.' using errcode = '23505';
+  end if;
+
+  if exists (select 1 from public.companies c where lower(c.code)=lower(v_code)) then
+    raise exception 'Company code is already in use.' using errcode = '23505';
+  end if;
+
+  insert into public.companies(name,code,subdomain,created_by)
+  values(v_name,v_code,v_subdomain,v_user_id)
+  returning companies.id into v_company_id;
+
+  insert into public.company_members(company_id,user_id,role,is_active)
+  values(v_company_id,v_user_id,'owner',true)
+  on conflict(company_id,user_id)
+  do update set role='owner', is_active=true, updated_at=now();
+
+  return query
+  select c.id,c.name,c.code,c.subdomain,v_user_id,source_company_id
+  from public.companies c
+  where c.id=v_company_id;
+end;
+$$;
+
+revoke all on function public.create_company_for_owner(uuid,text,text,text) from public;
+grant execute on function public.create_company_for_owner(uuid,text,text,text) to authenticated;
+
+-- --------------------------------------------------------------------------
+-- 7) Global company-code uniqueness invariant
+-- --------------------------------------------------------------------------
+create unique index if not exists companies_code_uq
+  on public.companies (lower(code))
+  where code is not null;
+
+-- --------------------------------------------------------------------------
+-- 8) Harden tenant resolution against reserved infrastructure names.
 -- --------------------------------------------------------------------------
 create or replace function public.resolve_company_subdomain(target_subdomain text)
 returns table(id uuid, name text, code text, subdomain text)

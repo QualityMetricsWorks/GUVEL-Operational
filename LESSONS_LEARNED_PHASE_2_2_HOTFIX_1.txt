@@ -1,0 +1,1 @@
+Phase 2.2 initially exposed company creation only during first-account onboarding. Existing Owners therefore saw only Save Company Identity. The onboarding RPC intentionally blocks existing members, so the correct additive fix is a separate owner-only provisioning RPC plus an explicit Settings UI.

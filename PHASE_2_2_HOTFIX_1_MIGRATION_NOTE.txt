@@ -1,0 +1,2 @@
+Run PHASE_2_2_COMPANY_TENANT_PROVISIONING.sql in Supabase SQL Editor.
+The migration is additive and safe to re-run. Then deploy the updated frontend files to the existing GUVEL Operational origin.

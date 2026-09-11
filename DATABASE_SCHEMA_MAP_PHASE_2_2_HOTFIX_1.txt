@@ -1,0 +1,10 @@
+COMPANIES (existing)
+- id, name, code, subdomain, created_at, created_by, updated_at
+- New invariant: unique lower(code) via companies_code_uq.
+
+COMPANY_MEMBERS (existing)
+- company_id -> companies.id
+- user_id -> auth.users.id
+- New company creation assigns the authenticated Owner to the target company.
+
+No new tables or foreign keys.

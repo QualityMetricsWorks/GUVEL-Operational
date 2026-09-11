@@ -1,0 +1,1 @@
+A company Owner may provision an additional company from Settings. The new company receives its own subdomain and an owner membership for the creating user. The current active company remains unchanged. Tenant hostname, authenticated membership and RLS continue to determine access.
