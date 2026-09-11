@@ -1,0 +1,14 @@
+GUVEL Operational — Phase 2.2 HOTFIX 2 UAT
+
+1. Login as an active company Owner.
+2. Open Settings.
+3. Confirm Company Identity still shows Save Company Identity.
+4. Confirm ＋ Create New Company is visible beside Save Company Identity.
+5. Click Create New Company.
+6. Confirm the Company Management dialog opens.
+7. Enter a unique Company Name, Company Code and Subdomain.
+8. Confirm subdomain availability is shown.
+9. Create the company.
+10. Confirm success message shows the new portal URL.
+11. Confirm current company remains active.
+12. Confirm a non-owner role does not receive the button.

@@ -490,7 +490,24 @@ function openCreateAdditionalCompany(){
 }
 
 async function saveCompanyIdentity(e){e.preventDefault();if(!['owner'].includes(currentUserRole()))return setCompanyIdentityMessage('Only the company owner can change company identity.','error');const name=document.getElementById('companyIdentityName').value.trim(),code=document.getElementById('companyIdentityCode').value.trim(),sub=document.getElementById('companyIdentitySubdomain').value.trim().toLowerCase();if(!name||!code||!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(sub))return setCompanyIdentityMessage('Company name, code and a valid subdomain are required.','error');setCompanyIdentityMessage('Validating company address...');const {data:available,error:availabilityError}=await sb.rpc('is_company_subdomain_available',{target_subdomain:sub,exclude_company_id:activeCompanyId});if(availabilityError)return setCompanyIdentityMessage(availabilityError.message,'error');if(available!==true)return setCompanyIdentityMessage('This company address is already in use or reserved.','error');setCompanyIdentityMessage('Saving...');const {data,error}=await sb.rpc('update_company_identity',{target_company_id:activeCompanyId,target_name:name,target_code:code,target_subdomain:sub});if(error)return setCompanyIdentityMessage(error.message,'error');const row=Array.isArray(data)?data[0]:data;if(!row?.id)return setCompanyIdentityMessage('Company identity was updated but could not be reloaded.','error');window.GUVEL_CURRENT_COMPANY={...(window.GUVEL_CURRENT_COMPANY||{}),...row};document.getElementById('companyBadge').textContent=`${row.name} · ${currentUserRole()}`;document.getElementById('companyPortalUrl').textContent=`Portal URL: https://${row.subdomain}.${GUVEL_BASE_DOMAIN}`;setCompanyIdentityMessage('Company identity saved successfully.','success');}
-function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;const f=document.getElementById('companyIdentityForm');if(f)f.onsubmit=saveCompanyIdentity;document.getElementById('createAdditionalCompany')?.addEventListener('click',openCreateAdditionalCompany);loadCompanyIdentity();loadShifts();}
+function ensureAdditionalCompanyButton(){
+  const form=document.getElementById('companyIdentityForm');
+  if(!form || currentUserRole()!=='owner') return;
+  let btn=document.getElementById('createAdditionalCompany');
+  if(!btn){
+    const actions=form.querySelector('.actions');
+    if(!actions) return;
+    btn=document.createElement('button');
+    btn.type='button';
+    btn.id='createAdditionalCompany';
+    btn.className='secondary';
+    btn.textContent='＋ Create New Company';
+    actions.appendChild(btn);
+  }
+  btn.onclick=openCreateAdditionalCompany;
+}
+function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;const f=document.getElementById('companyIdentityForm');if(f)f.onsubmit=saveCompanyIdentity;ensureAdditionalCompanyButton();loadCompanyIdentity();loadShifts();}
+
 
 function customersPage(){
   return head('Customers','Create and maintain customer master data. Every customer belongs to the active company.')

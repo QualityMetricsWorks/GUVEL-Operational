@@ -1,0 +1,7 @@
+GUVEL Operational — Version History — Phase 2.2 HOTFIX 2
+
+2026-09-11
+- Fixed Owner-only Create New Company visibility in Settings.
+- Added DOM-level fallback injection after membership role is resolved.
+- Updated frontend cache-busting token.
+- No database changes.
