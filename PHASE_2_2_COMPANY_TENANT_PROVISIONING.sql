@@ -241,7 +241,7 @@ grant execute on function public.update_company_identity(uuid,text,text,text) to
 --    explicitly from Settings while remaining in the current active company.
 -- --------------------------------------------------------------------------
 create or replace function public.create_company_for_owner(
-  source_company_id uuid,
+  p_source_company_id uuid,
   target_name text,
   target_code text,
   target_subdomain text
@@ -269,7 +269,7 @@ begin
     raise exception 'Authentication is required to create a company.' using errcode = '28000';
   end if;
 
-  if source_company_id is null or not public.is_company_owner(source_company_id) then
+  if p_source_company_id is null or not public.is_company_owner(p_source_company_id) then
     raise exception 'Only the owner of the source company can create another company.' using errcode = '42501';
   end if;
 
@@ -299,7 +299,7 @@ begin
   do update set role='owner', is_active=true, updated_at=now();
 
   return query
-  select c.id,c.name,c.code,c.subdomain,v_user_id,source_company_id
+  select c.id,c.name,c.code,c.subdomain,v_user_id,p_source_company_id
   from public.companies c
   where c.id=v_company_id;
 end;
