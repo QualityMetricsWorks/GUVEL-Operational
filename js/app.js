@@ -1136,7 +1136,7 @@ document.addEventListener('click', async (event)=>{
 /* ===== GUVEL Operational Phase 2.0.4 — Users UI ===== */
 const USER_ROLE_LABELS={owner:'Owner',admin:'Admin',manager:'Manager',supervisor:'Supervisor',viewer:'Viewer'};
 const USER_ROLE_ORDER=['owner','admin','manager','supervisor','viewer'];
-function currentUserRole(){return window.GUVEL_CURRENT_MEMBERSHIP?.role||'viewer';}
+function currentUserRole(){return String(window.GUVEL_CURRENT_MEMBERSHIP?.role||'viewer').trim().toLowerCase();}
 function canUserManage(){return ['owner','admin'].includes(currentUserRole());}
 function canUserInvite(){return ['owner','admin','manager'].includes(currentUserRole());}
 function canUserView(){return true;}
