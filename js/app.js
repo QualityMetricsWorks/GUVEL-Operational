@@ -1172,52 +1172,17 @@ function showInviteDialog(){const old=document.getElementById('userOverlay');if(
 async function createInvitation(){
   const emailEl=document.getElementById('inviteEmail'), roleEl=document.getElementById('inviteRole'), msg=document.getElementById('userInviteMessage'), btn=document.getElementById('createInvite');
   const name=(document.getElementById('inviteName')?.value||'').trim(), email=(emailEl?.value||'').trim().toLowerCase(), role=roleEl?.value||'viewer';
-  if(!name||!email){msg.className='status error';msg.textContent='Email is required.';return;}
-  btn.disabled=true;
-  msg.className='status';
-  msg.textContent='Creating invitation...';
+  if(!name||!email){msg.className='status error';msg.textContent='Name and email are required.';return;}
+  btn.disabled=true; msg.className='status'; msg.textContent='Sending GUVEL invitation...';
   try{
-    const result=await sb.rpc('create_company_invitation',{target_company_id:activeCompanyId,target_name:name,target_email:email,target_role:role});
-    const {data,error}=result||{};
+    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{company_id:activeCompanyId,name,email,role}});
     if(error)throw error;
-
-    // The RPC is RETURNS TABLE, so Supabase normally returns an array of rows.
-    // Normalize a few harmless transport variants without changing the database contract.
-    let payload=data;
-    if(typeof payload==='string'){
-      try{payload=JSON.parse(payload);}catch{}
-    }
-    if(Array.isArray(payload)) payload=payload[0]||{};
-    if(payload&&payload.data){
-      let nested=payload.data;
-      if(typeof nested==='string'){try{nested=JSON.parse(nested);}catch{}}
-      if(Array.isArray(nested)) nested=nested[0]||{};
-      if(nested&&typeof nested==='object') payload=nested;
-    }
-
-    let token='';
-    if(payload&&typeof payload==='object'){
-      token=String(payload.invitation_token??payload.invitationToken??payload.token??'').trim();
-    }
-    if(!token){
-      console.error('GUVEL invitation RPC response did not contain invitation_token:',{data,error});
-      throw new Error('The invitation was created, but the server response did not contain the invitation token. Do not create another invitation.');
-    }
-
-    // Build the invitation URL without mutating the current page state.
-    const inviteLink=buildInvitationLink(token,window.GUVEL_CURRENT_COMPANY?.subdomain||'');
-
-    // IMPORTANT: show Success immediately after the successful RPC.
-    // The delivery layer (Hostinger/Resend) is intentionally separate from this transaction.
+    if(!data?.success)throw new Error(data?.error||'The invitation could not be sent.');
     msg.className='status success';
-    msg.innerHTML=`<strong>Invitation created successfully.</strong><div class="invite-meta"><span>Email: <b>${escapeHtml(email)}</b></span><span>Role: <b>${escapeHtml(USER_ROLE_LABELS[role]||role)}</b></span></div><p>The invitation email must be delivered by the configured secure mail service.</p>`;
-
-    // Refresh the invitation table after success, but never let table refresh hide the success state.
+    msg.innerHTML=`<strong>Invitation sent successfully.</strong><div class="invite-meta"><span>Email: <b>${escapeHtml(email)}</b></span><span>Role: <b>${escapeHtml(USER_ROLE_LABELS[role]||role)}</b></span></div><p>The user will receive a personalized GUVEL email.</p>`;
     renderUsersInvitations().catch(e=>console.warn('GUVEL invitation list refresh failed:',e));
-  }catch(e){
-    msg.className='status error';
-    msg.textContent=e?.message||'Unable to create invitation.';
-  }finally{btn.disabled=false;}
+  }catch(e){msg.className='status error';msg.textContent=e?.message||'Unable to send invitation.';}
+  finally{btn.disabled=false;}
 }
 async function revokeInvitation(id){if(!confirm('Revoke this pending invitation?'))return;try{const {error}=await sb.rpc('revoke_company_invitation',{target_invitation_id:id});if(error)throw error;renderUsersInvitations();}catch(e){alert(e.message||'Unable to revoke invitation.');}}
 function openRoleEditor(id,currentRole){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="eyebrow">USER ACCESS</div><h2>Change Role</h2><p>Permissions are derived from the selected role.</p><div class="field"><label>Role</label><select id="editUserRole">${USER_ROLE_ORDER.filter(r=>r!=='owner').map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${USER_ROLE_LABELS[r]}</option>`).join('')}</select></div><div id="roleMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelRole" type="button">Cancel</button><button class="primary" id="saveRole" type="button">Save Role</button></div></div>`;document.body.appendChild(o);document.getElementById('cancelRole').onclick=()=>o.remove();document.getElementById('saveRole').onclick=async()=>{const role=document.getElementById('editUserRole').value,m=document.getElementById('roleMessage');m.textContent='Saving...';const {data,error}=await sb.rpc('change_company_member_role',{target_member_id:id,target_role:role});if(error){m.className='status error';m.textContent=error.message;return;}if(data!==true){m.className='status error';m.textContent='Role was not changed.';return;}o.remove();renderUsersMembers();};}
@@ -1396,11 +1361,28 @@ async function bootstrapSession(){
   currentUser=session.user;
   try{
     const membership=await loadMembership();
-    if(!membership){showCompanySetup();return;}
+    if(!membership){
+      const {data:isSuperAdmin,error:superAdminError}=await sb.rpc('is_guvel_platform_super_admin');
+      if(superAdminError) throw superAdminError;
+      if(isSuperAdmin===true){showCompanySetup();return;}
+      showAccessPending();
+      return;
+    }
     showApp(); renderNav(); render();
   }catch(e){showAuth(e.message||'Unable to load your company access.');}
 }
+function showAccessPending(){
+  document.getElementById('authMode').textContent='Access Pending';
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('signupForm').classList.add('hidden');
+  document.getElementById('companySetup').classList.add('hidden');
+  document.getElementById('authMessage').textContent='Your account does not have an active company assignment. Ask a GUVEL company administrator to invite you.';
+  showAuth();
+}
 function showCompanySetup(){
+  // Company Setup is reserved for the GUVEL Platform Super Admin.
+  if(!currentUser) return showAccessPending();
+
   document.getElementById('authMode').textContent='Company Setup';
   document.getElementById('loginForm').classList.add('hidden');
   document.getElementById('signupForm').classList.add('hidden');
