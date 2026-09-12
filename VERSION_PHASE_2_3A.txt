@@ -1,0 +1,3 @@
+GUVEL Operational Phase 2.3.A
+Status: READY FOR USER ACCEPTANCE
+Build: GUVEL-2-3A-1
