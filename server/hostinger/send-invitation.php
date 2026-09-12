@@ -32,7 +32,7 @@ $company = trim((string)($body['company_name'] ?? 'Your company'));
 $role = trim((string)($body['role'] ?? 'viewer'));
 $inviteUrl = trim((string)($body['invitation_url'] ?? ''));
 
-if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !$inviteUrl || !preg_match('/^https:\/\/guvelsystems\.com\//i', $inviteUrl)) {
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !$inviteUrl || !preg_match('/^https:\/\/[a-z0-9-]+\.guvelsystems\.com\/\?invite=/i', $inviteUrl)) {
     http_response_code(400); echo json_encode(['error'=>'Invalid invitation payload']); exit;
 }
 
