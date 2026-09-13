@@ -1,7 +1,7 @@
 const cfg=window.GUVEL_CONFIG;let sb=null;
 if(cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY) sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
-const navItems=['Dashboard','Capture','Customers','Part Numbers','Machines','Catalog','Registers','Personnel','Users','Company Administration','Settings'];
-const navIcons={Dashboard:'▦',Capture:'＋',Customers:'♙','Part Numbers':'▤',Machines:'▥',Catalog:'◈',Registers:'☷',Personnel:'♙',Users:'◎','Company Administration':'▣',Settings:'⚙'};
+const navItems=['Dashboard','Capture','Customers','Part Numbers','Machines','Catalog','Registers','Personnel','Users','Settings'];
+const navIcons={Dashboard:'▦',Capture:'＋',Customers:'♙','Part Numbers':'▤',Machines:'▥',Catalog:'◈',Registers:'☷',Personnel:'♙',Users:'◎',Settings:'⚙'};
 const nav=document.getElementById('nav'),view=document.getElementById('view');let current='Dashboard';
 function renderNav(){nav.innerHTML=navItems.map(x=>`<button class="nav-item ${x===current?'active':''}" data-page="${x}"><span class="nav-icon" aria-hidden="true">${navIcons[x]||'•'}</span><span>${x}</span></button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{current=b.dataset.page;renderNav();render();});}
 function head(title,desc){return `<div class="page-head"><div><div class="eyebrow">GUVEL OPERATIONAL</div><h1>${title}</h1><p>${desc}</p></div></div>`}
@@ -457,7 +457,7 @@ function capture(){return head('Capture','Register production, scrap and downtim
 function fields(a){return a.map(x=>`<div class="field"><label>${x}</label><input placeholder="${x}"></div>`).join('')}
 function table(title,cols){return head(title,'Foundation module — ready for Supabase CRUD.')+`<div class="panel"><div class="actions"><button class="primary">Add New</button></div></div><div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody><tr><td colspan="${cols.length}">No records yet.</td></tr></tbody></table></div>`}
 function shiftsPage(){return head('Settings — Company & Shifts','Manage company identity and production shifts.')+`
-<div class="panel section"><div class="section-title"><div><h2>Company Identity</h2><p>Your tenant URL is used for company-specific access and invitation links.</p></div></div><form id="companyIdentityForm"><div class="form-grid"><div class="field"><label>Company Name</label><input id="companyIdentityName" value="" required></div><div class="field"><label>Company Code</label><input id="companyIdentityCode" value="" required></div><div class="field"><label>Company Subdomain *</label><input id="companyIdentitySubdomain" value="" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"><small id="companyPortalUrl"></small></div></div><div class="actions"><button class="primary" id="saveCompanyIdentity" type="submit">Save Company Identity</button>${currentUserRole()==='owner'?'<button class="secondary" id="createAdditionalCompany" type="button">＋ Create New Company</button>':''}</div><div id="companyIdentityMessage" class="status"></div></form></div>`+`
+<div class="panel section"><div class="section-title"><div><h2>Company Identity</h2><p>Your tenant URL is used for company-specific access and invitation links.</p></div></div><form id="companyIdentityForm"><div class="form-grid"><div class="field"><label>Company Name</label><input id="companyIdentityName" value="" required></div><div class="field"><label>Company Code</label><input id="companyIdentityCode" value="" required></div><div class="field"><label>Company Subdomain *</label><input id="companyIdentitySubdomain" value="" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"><small id="companyPortalUrl"></small></div></div><div class="actions"><button class="primary" id="saveCompanyIdentity" type="submit">Save Company Identity</button></div><div id="companyIdentityMessage" class="status"></div></form></div>`+`
 <div class="panel section"><div class="section-title"><div><h2 id="shiftFormTitle">Add Shift</h2><p id="shiftFormDesc">All shifts are linked to the active company.</p></div><button id="cancelEdit" class="secondary" style="display:none">Cancel Edit</button></div><form id="shiftForm"><div class="form-grid"><div class="field"><label>Shift Code *</label><input id="shiftCode" required maxlength="50" placeholder="1"></div><div class="field"><label>Shift Name *</label><input id="shiftName" required maxlength="150" placeholder="First Shift"></div><div class="field"><label>Start *</label><input id="shiftStart" type="time" required></div><div class="field"><label>End *</label><input id="shiftEnd" type="time" required></div><div class="field"><label>Excluded Planned Time (minutes)</label><input id="shiftExcluded" type="number" min="0" step="0.01" value="0"></div></div><div class="actions"><button class="primary" type="submit" id="shiftSubmit">Save Shift</button></div><div id="shiftMessage" class="status"></div></form></div><div class="section-title"><div><h2>Registered Shifts</h2><p>Company-scoped master data.</p></div><button id="reloadShifts" class="secondary">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Start</th><th>End</th><th>Excluded Planned Time</th><th>Actions</th></tr></thead><tbody id="shiftsBody"><tr><td colspan="6">Loading shifts...</td></tr></tbody></table></div>`}
 let editingShiftId=null;
 function setShiftMessage(text,type=''){const el=document.getElementById('shiftMessage');if(!el)return;el.textContent=text;el.className=`status ${type}`;}
@@ -475,39 +475,8 @@ async function loadCompanyIdentity(){
   name.value=data.name||'';code.value=data.code||'';sub.value=data.subdomain||'';url.textContent=data.subdomain?`Portal URL: https://${data.subdomain}.${GUVEL_BASE_DOMAIN}`:'Portal URL: not configured yet';
 }
 function setCompanyIdentityMessage(text,type=''){const el=document.getElementById('companyIdentityMessage');if(el){el.textContent=text;el.className=`status ${type}`;}}
-let companyCreateCheckTimer=null;
-function openCreateAdditionalCompany(){
-  const old=document.getElementById('companyCreateOverlay');if(old)old.remove();
-  const o=document.createElement('div');o.id='companyCreateOverlay';o.className='users-overlay';
-  o.innerHTML=`<div class="users-dialog company-create-dialog"><div class="dashboard-config-head"><div><div class="eyebrow">COMPANY MANAGEMENT</div><h2>Create New Company</h2></div><button class="icon-button" id="closeCompanyCreate" type="button">×</button></div><div class="dashboard-config-body"><p>Create an additional GUVEL company. You will become its Owner and remain in the current company.</p><form id="additionalCompanyForm"><div class="form-grid"><div class="field"><label>Company Name *</label><input id="additionalCompanyName" required maxlength="120" placeholder="Company name"></div><div class="field"><label>Company Code *</label><input id="additionalCompanyCode" required maxlength="50" placeholder="COMPANY-01"></div><div class="field"><label>Company Subdomain *</label><input id="additionalCompanySubdomain" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?" placeholder="company-name"><small id="additionalCompanyUrl"></small></div></div><div id="additionalCompanyMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelCompanyCreate" type="button">Cancel</button><button class="primary" id="saveAdditionalCompany" type="submit">Create Company</button></div></form></div></div>`;
-  document.body.appendChild(o);
-  const close=()=>o.remove();
-  document.getElementById('closeCompanyCreate').onclick=close;document.getElementById('cancelCompanyCreate').onclick=close;
-  const sub=document.getElementById('additionalCompanySubdomain'),url=document.getElementById('additionalCompanyUrl');
-  const check=async()=>{const value=sub.value.trim().toLowerCase();if(!value){url.textContent='';return false;}if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value)){url.textContent='Use lowercase letters, numbers and internal hyphens only.';return false;}try{const {data,error}=await sb.rpc('is_company_subdomain_available',{target_subdomain:value});if(error)throw error;if(data===true){url.textContent=`Available: https://${value}.${GUVEL_BASE_DOMAIN}`;url.className='status success';return true;}url.textContent='This company address is already in use or reserved.';url.className='status error';return false;}catch(err){url.textContent=err.message||'Unable to validate the company address.';url.className='status error';return false;}};
-  sub.addEventListener('input',()=>{clearTimeout(companyCreateCheckTimer);companyCreateCheckTimer=setTimeout(check,300);});
-  document.getElementById('additionalCompanyForm').onsubmit=async e=>{e.preventDefault();const msg=document.getElementById('additionalCompanyMessage'),btn=document.getElementById('saveAdditionalCompany');const name=document.getElementById('additionalCompanyName').value.trim(),code=document.getElementById('additionalCompanyCode').value.trim(),subdomain=sub.value.trim().toLowerCase();if(!name||!code||!subdomain){msg.textContent='Company name, code and subdomain are required.';msg.className='status error';return;}if(!await check()){msg.textContent='Choose an available company address.';msg.className='status error';return;}btn.disabled=true;msg.textContent='Creating company...';msg.className='status';try{const {data,error}=await sb.rpc('create_company_for_owner',{source_company_id:activeCompanyId,target_name:name,target_code:code,target_subdomain:subdomain});if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row?.id)throw new Error('Company was created but its identity could not be loaded.');msg.textContent=`Company created successfully. Portal: https://${row.subdomain}.${GUVEL_BASE_DOMAIN}`;msg.className='status success';document.getElementById('companyIdentityMessage').textContent=`New company created: ${row.name} · ${row.subdomain}`;document.getElementById('companyIdentityMessage').className='status success';}catch(err){msg.textContent=err.message||'Unable to create the company.';msg.className='status error';}finally{btn.disabled=false;}};
-}
-
-async function saveCompanyIdentity(e){e.preventDefault();if(!['owner'].includes(currentUserRole()))return setCompanyIdentityMessage('Only the company owner can change company identity.','error');const name=document.getElementById('companyIdentityName').value.trim(),code=document.getElementById('companyIdentityCode').value.trim(),sub=document.getElementById('companyIdentitySubdomain').value.trim().toLowerCase();if(!name||!code||!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(sub))return setCompanyIdentityMessage('Company name, code and a valid subdomain are required.','error');setCompanyIdentityMessage('Validating company address...');const {data:available,error:availabilityError}=await sb.rpc('is_company_subdomain_available',{target_subdomain:sub,exclude_company_id:activeCompanyId});if(availabilityError)return setCompanyIdentityMessage(availabilityError.message,'error');if(available!==true)return setCompanyIdentityMessage('This company address is already in use or reserved.','error');setCompanyIdentityMessage('Saving...');const {data,error}=await sb.rpc('update_company_identity',{target_company_id:activeCompanyId,target_name:name,target_code:code,target_subdomain:sub});if(error)return setCompanyIdentityMessage(error.message,'error');const row=Array.isArray(data)?data[0]:data;if(!row?.id)return setCompanyIdentityMessage('Company identity was updated but could not be reloaded.','error');window.GUVEL_CURRENT_COMPANY={...(window.GUVEL_CURRENT_COMPANY||{}),...row};document.getElementById('companyBadge').textContent=`${row.name} · ${currentUserRole()}`;document.getElementById('companyPortalUrl').textContent=`Portal URL: https://${row.subdomain}.${GUVEL_BASE_DOMAIN}`;setCompanyIdentityMessage('Company identity saved successfully.','success');}
-function ensureAdditionalCompanyButton(){
-  const form=document.getElementById('companyIdentityForm');
-  if(!form || currentUserRole()!=='owner') return;
-  let btn=document.getElementById('createAdditionalCompany');
-  if(!btn){
-    const actions=form.querySelector('.actions');
-    if(!actions) return;
-    btn=document.createElement('button');
-    btn.type='button';
-    btn.id='createAdditionalCompany';
-    btn.className='secondary';
-    btn.textContent='＋ Create New Company';
-    actions.appendChild(btn);
-  }
-  btn.onclick=openCreateAdditionalCompany;
-}
-function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;const f=document.getElementById('companyIdentityForm');if(f)f.onsubmit=saveCompanyIdentity;ensureAdditionalCompanyButton();loadCompanyIdentity();loadShifts();}
-
+async function saveCompanyIdentity(e){e.preventDefault();if(!['owner'].includes(currentUserRole()))return setCompanyIdentityMessage('Only the company owner can change company identity.','error');const name=document.getElementById('companyIdentityName').value.trim(),code=document.getElementById('companyIdentityCode').value.trim(),sub=document.getElementById('companyIdentitySubdomain').value.trim().toLowerCase();if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(sub))return setCompanyIdentityMessage('Subdomain must use lowercase letters, numbers and internal hyphens only.','error');setCompanyIdentityMessage('Saving...');const {data,error}=await sb.from('companies').update({name,code,subdomain:sub}).eq('id',activeCompanyId).select('name,code,subdomain').single();if(error)return setCompanyIdentityMessage(error.message,'error');window.GUVEL_CURRENT_COMPANY={...(window.GUVEL_CURRENT_COMPANY||{}),...data};document.getElementById('companyBadge').textContent=`${data.name} · ${currentUserRole()}`;document.getElementById('companyPortalUrl').textContent=`Portal URL: https://${data.subdomain}.${GUVEL_BASE_DOMAIN}`;setCompanyIdentityMessage('Company identity saved successfully.','success');}
+function bindShifts(){document.getElementById('shiftForm').onsubmit=saveShift;document.getElementById('cancelEdit').onclick=cancelEdit;document.getElementById('reloadShifts').onclick=loadShifts;const f=document.getElementById('companyIdentityForm');if(f)f.onsubmit=saveCompanyIdentity;loadCompanyIdentity();loadShifts();}
 
 function customersPage(){
   return head('Customers','Create and maintain customer master data. Every customer belongs to the active company.')
@@ -1153,7 +1122,7 @@ document.addEventListener('click', async (event)=>{
 /* ===== GUVEL Operational Phase 2.0.4 — Users UI ===== */
 const USER_ROLE_LABELS={owner:'Owner',admin:'Admin',manager:'Manager',supervisor:'Supervisor',viewer:'Viewer'};
 const USER_ROLE_ORDER=['owner','admin','manager','supervisor','viewer'];
-function currentUserRole(){return String(window.GUVEL_CURRENT_MEMBERSHIP?.role||'viewer').trim().toLowerCase();}
+function currentUserRole(){return window.GUVEL_CURRENT_MEMBERSHIP?.role||'viewer';}
 function canUserManage(){return ['owner','admin'].includes(currentUserRole());}
 function canUserInvite(){return ['owner','admin','manager'].includes(currentUserRole());}
 function canUserView(){return true;}
@@ -1168,39 +1137,89 @@ function renderInvitationRows(rows){const body=document.getElementById('invitati
 async function renderUsersMembers(){const body=document.getElementById('usersBody');if(body)body.innerHTML='<tr><td colspan="6">Loading users...</td></tr>';try{renderUsersRows(await loadUsersData());}catch(e){if(body)body.innerHTML=`<tr><td colspan="6">${escapeHtml(e.message||'Unable to load users.')}</td></tr>`;}}
 async function renderUsersInvitations(){const host=document.getElementById('usersWorkspace');host.innerHTML=`<div class="panel"><div class="section-title"><div><h2>Pending & Historical Invitations</h2><p>Invitation lifecycle is enforced by Supabase security policies and RPC functions.</p></div>${canUserInvite()?'<button class="primary" id="inviteUserBtn2" type="button">Invite User</button>':''}</div><div class="table-wrap"><table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Expires</th><th>Created</th><th>Actions</th></tr></thead><tbody id="invitationsBody"><tr><td colspan="6">Loading invitations...</td></tr></tbody></table></div></div>`;try{renderInvitationRows(await loadInvitationsData());}catch(e){document.getElementById('invitationsBody').innerHTML=`<tr><td colspan="6">${escapeHtml(e.message||'Unable to load invitations.')}</td></tr>`;}const b=document.getElementById('inviteUserBtn2');if(b)b.onclick=showInviteDialog;}
 function switchUsersTab(tab){document.querySelectorAll('[data-users-tab]').forEach(b=>b.classList.toggle('active',b.dataset.usersTab===tab));if(tab==='members'){const host=document.getElementById('usersWorkspace');host.innerHTML=`<div class="panel"><div class="section-title"><div><h2>Company Users</h2><p>Authenticated users with active or inactive membership in this company.</p></div></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="usersBody"><tr><td colspan="6">Loading users...</td></tr></tbody></table></div></div>`;renderUsersMembers();}else renderUsersInvitations();}
-function showInviteDialog(){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="section-title"><div><div class="eyebrow">NEW INVITATION</div><h2>Invite User</h2><p>The user will receive an email and create only their own password.</p></div><button class="secondary" id="closeUserDialog" type="button">×</button></div><div class="form-grid"><div class="field"><label>Name *</label><input id="inviteName" type="text" required placeholder="Full name"></div><div class="field"><label>Email *</label><input id="inviteEmail" type="email" required placeholder="user@company.com"></div><div class="field"><label>Role *</label><select id="inviteRole"><option value="owner">Owner</option><option value="admin">Admin</option><option value="manager">Manager</option><option value="supervisor">Supervisor</option><option value="viewer" selected>Viewer</option></select></div></div><div id="userInviteMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelInvite" type="button">Cancel</button><button class="primary" id="createInvite" type="button">Create Invitation</button></div></div>`;document.body.appendChild(o);document.getElementById('closeUserDialog').onclick=()=>o.remove();document.getElementById('cancelInvite').onclick=()=>o.remove();document.getElementById('createInvite').onclick=createInvitation;}
+function showInviteDialog(){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="section-title"><div><div class="eyebrow">NEW INVITATION</div><h2>Invite User</h2><p>The user must sign in with the invited email to accept.</p></div><button class="secondary" id="closeUserDialog" type="button">×</button></div><div class="form-grid"><div class="field"><label>Email *</label><input id="inviteEmail" type="email" required placeholder="user@company.com"></div><div class="field"><label>Role *</label><select id="inviteRole"><option value="admin">Admin</option><option value="manager">Manager</option><option value="supervisor">Supervisor</option><option value="viewer" selected>Viewer</option></select></div></div><div id="userInviteMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelInvite" type="button">Cancel</button><button class="primary" id="createInvite" type="button">Create Invitation</button></div></div>`;document.body.appendChild(o);document.getElementById('closeUserDialog').onclick=()=>o.remove();document.getElementById('cancelInvite').onclick=()=>o.remove();document.getElementById('createInvite').onclick=createInvitation;}
 async function createInvitation(){
   const emailEl=document.getElementById('inviteEmail'), roleEl=document.getElementById('inviteRole'), msg=document.getElementById('userInviteMessage'), btn=document.getElementById('createInvite');
-  const name=(document.getElementById('inviteName')?.value||'').trim(), email=(emailEl?.value||'').trim().toLowerCase(), role=roleEl?.value||'viewer';
-  if(!name||!email){msg.className='status error';msg.textContent='Name and email are required.';return;}
-  btn.disabled=true; msg.className='status'; msg.textContent='Sending GUVEL invitation...';
+  const email=(emailEl?.value||'').trim().toLowerCase(), role=roleEl?.value||'viewer';
+  if(!email){msg.className='status error';msg.textContent='Email is required.';return;}
+  btn.disabled=true;
+  msg.className='status';
+  msg.textContent='Creating invitation...';
   try{
-    const {data:invitation,error:invitationError}=await sb.rpc('create_company_invitation_with_token_as_platform_admin',{p_company_id:activeCompanyId,p_email:email,p_full_name:name,p_role:role});
-    if(invitationError)throw invitationError;
-    const createdInvitation=Array.isArray(invitation)?invitation[0]:invitation;
-    if(!createdInvitation?.invitation_id||!createdInvitation?.invitation_token)throw new Error('The invitation record or secure token was not created.');
-    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{
-      invitation_id:createdInvitation.invitation_id,
-      invitation_token:createdInvitation.invitation_token
-    }});
+    const result=await sb.rpc('create_company_invitation',{target_company_id:activeCompanyId,target_email:email,target_role:role});
+    const {data,error}=result||{};
     if(error)throw error;
-    if(!data?.success)throw new Error(data?.error||'The invitation could not be sent.');
+
+    // The RPC is RETURNS TABLE, so Supabase normally returns an array of rows.
+    // Normalize a few harmless transport variants without changing the database contract.
+    let payload=data;
+    if(typeof payload==='string'){
+      try{payload=JSON.parse(payload);}catch{}
+    }
+    if(Array.isArray(payload)) payload=payload[0]||{};
+    if(payload&&payload.data){
+      let nested=payload.data;
+      if(typeof nested==='string'){try{nested=JSON.parse(nested);}catch{}}
+      if(Array.isArray(nested)) nested=nested[0]||{};
+      if(nested&&typeof nested==='object') payload=nested;
+    }
+
+    let token='';
+    if(payload&&typeof payload==='object'){
+      token=String(payload.invitation_token??payload.invitationToken??payload.token??'').trim();
+    }
+    if(!token){
+      console.error('GUVEL invitation RPC response did not contain invitation_token:',{data,error});
+      throw new Error('The invitation was created, but the server response did not contain the invitation token. Do not create another invitation.');
+    }
+
+    // Build the invitation URL without mutating the current page state.
+    const inviteLink=buildInvitationLink(token,window.GUVEL_CURRENT_COMPANY?.subdomain||'');
+
+    // IMPORTANT: show Success immediately after the successful RPC.
+    // The delivery layer (Hostinger/Resend) is intentionally separate from this transaction.
     msg.className='status success';
-    msg.innerHTML=`<strong>Invitation sent successfully.</strong><div class="invite-meta"><span>Email: <b>${escapeHtml(email)}</b></span><span>Role: <b>${escapeHtml(USER_ROLE_LABELS[role]||role)}</b></span></div><p>The user will receive a personalized GUVEL email.</p>`;
+    msg.innerHTML=`<strong>Invitation created successfully.</strong><div class="invite-meta"><span>Email: <b>${escapeHtml(email)}</b></span><span>Role: <b>${escapeHtml(USER_ROLE_LABELS[role]||role)}</b></span></div><div class="invite-token-box invite-link-box"><input id="copyInviteLinkValue" type="text" readonly value="${escapeHtml(inviteLink)}" aria-label="Invitation link"><button class="secondary" id="copyInviteLink" type="button">Copy Invitation Link</button></div><details class="invite-token-details"><summary>Technical token</summary><div class="invite-token-box"><input id="copyInviteTokenValue" type="text" readonly value="${escapeHtml(token)}" aria-label="Invitation token"><button class="secondary" id="copyInviteToken" type="button">Copy Token</button></div></details><small>The invitation link is the value intended for the personalized email. The raw token is shown only for administrative troubleshooting.</small>`;
+
+    const copyValue=async(value,button,label)=>{
+      const text=String(value||'').trim();
+      if(!text){button.textContent='Nothing to copy';setTimeout(()=>button.textContent=label,1800);return;}
+      try{
+        let copied=false;
+        if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(text);copied=true;}catch{}}
+        if(!copied){
+          const ta=document.createElement('textarea');
+          ta.value=text;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
+          document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);
+          copied=document.execCommand('copy');ta.remove();
+        }
+        if(!copied)throw new Error('Clipboard copy failed');
+        button.textContent='Copied';
+        setTimeout(()=>button.textContent=label,1600);
+      }catch(err){
+        console.error('GUVEL copy failed:',err);
+        // Keep the value selectable so the user always has a manual fallback.
+        button.textContent='Select to copy';
+        const input=button.previousElementSibling;
+        if(input){input.focus();input.select();input.setSelectionRange(0,input.value.length);}
+        setTimeout(()=>button.textContent=label,2200);
+      }
+    };
+    document.getElementById('copyInviteLink')?.addEventListener('click',()=>copyValue(document.getElementById('copyInviteLinkValue')?.value,document.getElementById('copyInviteLink'),'Copy Invitation Link'));
+    document.getElementById('copyInviteToken')?.addEventListener('click',()=>copyValue(document.getElementById('copyInviteTokenValue')?.value,document.getElementById('copyInviteToken'),'Copy Token'));
+
+    // Refresh the invitation table after success, but never let table refresh hide the success state.
     renderUsersInvitations().catch(e=>console.warn('GUVEL invitation list refresh failed:',e));
-  }catch(e){msg.className='status error';msg.textContent=e?.message||'Unable to send invitation.';}
-  finally{btn.disabled=false;}
+  }catch(e){
+    msg.className='status error';
+    msg.textContent=e?.message||'Unable to create invitation.';
+  }finally{btn.disabled=false;}
 }
 async function revokeInvitation(id){if(!confirm('Revoke this pending invitation?'))return;try{const {error}=await sb.rpc('revoke_company_invitation',{target_invitation_id:id});if(error)throw error;renderUsersInvitations();}catch(e){alert(e.message||'Unable to revoke invitation.');}}
-function openRoleEditor(id,currentRole){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="eyebrow">USER ACCESS</div><h2>Change Role</h2><p>Permissions are derived from the selected role.</p><div class="field"><label>Role</label><select id="editUserRole">${USER_ROLE_ORDER.filter(r=>r!=='owner').map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${USER_ROLE_LABELS[r]}</option>`).join('')}</select></div><div id="roleMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelRole" type="button">Cancel</button><button class="primary" id="saveRole" type="button">Save Role</button></div></div>`;document.body.appendChild(o);document.getElementById('cancelRole').onclick=()=>o.remove();document.getElementById('saveRole').onclick=async()=>{const role=document.getElementById('editUserRole').value,m=document.getElementById('roleMessage');m.textContent='Saving...';const {data,error}=await sb.rpc('change_company_member_role',{target_member_id:id,target_role:role});if(error){m.className='status error';m.textContent=error.message;return;}if(data!==true){m.className='status error';m.textContent='Role was not changed.';return;}o.remove();renderUsersMembers();};}
+function openRoleEditor(id,currentRole){const old=document.getElementById('userOverlay');if(old)old.remove();const o=document.createElement('div');o.id='userOverlay';o.className='users-overlay';o.innerHTML=`<div class="users-dialog"><div class="eyebrow">USER ACCESS</div><h2>Change Role</h2><p>Permissions are derived from the selected role.</p><div class="field"><label>Role</label><select id="editUserRole">${USER_ROLE_ORDER.filter(r=>r!=='owner').map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${USER_ROLE_LABELS[r]}</option>`).join('')}</select></div><div id="roleMessage" class="status"></div><div class="actions"><button class="secondary" id="cancelRole" type="button">Cancel</button><button class="primary" id="saveRole" type="button">Save Role</button></div></div>`;document.body.appendChild(o);document.getElementById('cancelRole').onclick=()=>o.remove();document.getElementById('saveRole').onclick=async()=>{const role=document.getElementById('editUserRole').value,m=document.getElementById('roleMessage');m.textContent='Saving...';const {error}=await sb.from('company_members').update({role}).eq('id',id).eq('company_id',activeCompanyId);if(error){m.className='status error';m.textContent=error.message;return;}o.remove();renderUsersMembers();};}
 async function bindUsers(){window.GUVEL_CURRENT_MEMBERSHIP=window.GUVEL_CURRENT_MEMBERSHIP||null;document.querySelectorAll('[data-users-tab]').forEach(b=>b.onclick=()=>switchUsersTab(b.dataset.usersTab));const inv=document.getElementById('inviteUserBtn');if(inv)inv.onclick=showInviteDialog;const refresh=document.getElementById('refreshUsersBtn');if(refresh)refresh.onclick=()=>{const active=document.querySelector('[data-users-tab].active')?.dataset.usersTab||'members';if(active==='members')renderUsersMembers();else renderUsersInvitations();};await renderUsersMembers();}
 
-function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return registersPage();case'Personnel':return '';case'Users':return usersPage();case'Company Administration':return companyAdministrationPage();case'Settings':return shiftsPage();default:return '';}}
-function companyAdministrationPage(){return `<div class="page-head"><div><div class="eyebrow">GUVEL PLATFORM</div><h1>Company Administration</h1><p>Restricted to GUVEL Platform Super Admin.</p></div></div><div id="companyAdminWorkspace"><div class="panel section"><div class="section-title"><div><h2>Create Company</h2><p>Create a tenant without requiring an existing company membership.</p></div></div><form id="platformCompanyForm"><div class="form-grid"><div class="field"><label>Company Name</label><input id="platformCompanyName" required maxlength="120"></div><div class="field"><label>Company Code</label><input id="platformCompanyCode" required maxlength="50"></div><div class="field"><label>Subdomain</label><input id="platformCompanySubdomain" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"></div></div><div class="actions"><button class="primary" type="submit">Create Company</button></div><div id="platformCompanyMessage" class="status"></div></form></div><div class="panel section"><div class="section-title"><div><h2>Companies</h2><p>Select a company to manage its users and invitations.</p></div><button class="secondary" id="reloadPlatformCompanies" type="button">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Code</th><th>Subdomain</th><th>Created</th><th>Action</th></tr></thead><tbody id="platformCompaniesBody"><tr><td colspan="5">Loading...</td></tr></tbody></table></div></div></div>`;}
-let selectedPlatformCompany=null;
-async function bindCompanyAdministration(){const gate=await sb.rpc('is_guvel_platform_super_admin');if(gate.error||gate.data!==true){view.innerHTML='<div class="panel"><h2>Access Pending</h2><p>Platform Super Admin access is required.</p></div>';return;}const workspace=document.getElementById('companyAdminWorkspace');const body=document.getElementById('platformCompaniesBody');const load=async()=>{body.innerHTML='<tr><td colspan="5">Loading...</td></tr>';const {data,error}=await sb.from('companies').select('id,name,code,subdomain,created_at').order('created_at',{ascending:false});if(error){body.innerHTML=`<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;return;}body.innerHTML=(data||[]).map(c=>`<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.code)}</td><td>${escapeHtml(c.subdomain||'—')}</td><td>${c.created_at?new Date(c.created_at).toLocaleDateString():'—'}</td><td><button type="button" class="secondary selectPlatformCompany" data-id="${c.id}">Open</button></td></tr>`).join('')||'<tr><td colspan="5">No companies found.</td></tr>';document.querySelectorAll('.selectPlatformCompany').forEach(b=>b.onclick=()=>openPlatformCompanyDetail((data||[]).find(c=>c.id===b.dataset.id)));};document.getElementById('reloadPlatformCompanies').onclick=load;document.getElementById('platformCompanyForm').onsubmit=async e=>{e.preventDefault();const m=document.getElementById('platformCompanyMessage');m.textContent='Creating...';const {data,error}=await sb.rpc('create_company_for_current_user',{target_name:document.getElementById('platformCompanyName').value.trim(),target_code:document.getElementById('platformCompanyCode').value.trim(),target_subdomain:document.getElementById('platformCompanySubdomain').value.trim().toLowerCase()});if(error){m.className='status error';m.textContent=error.message;return;}m.className='status success';m.textContent='Company created successfully.';e.target.reset();load();};window.openPlatformCompanyDetail=openPlatformCompanyDetail;await load();}
-function openPlatformCompanyDetail(company){if(!company)return;selectedPlatformCompany=company;activeCompanyId=company.id;const workspace=document.getElementById('companyAdminWorkspace');workspace.innerHTML=`<div class="panel section"><div class="section-title"><div><div class="eyebrow">COMPANY DETAIL</div><h2>${escapeHtml(company.name)}</h2><p>${escapeHtml(company.code)} · ${escapeHtml(company.subdomain||'No subdomain')}</p></div><button class="secondary" id="backToCompanies" type="button">Back to Companies</button></div><div class="form-grid"><div class="field"><label>Company Name</label><div>${escapeHtml(company.name)}</div></div><div class="field"><label>Company Code</label><div>${escapeHtml(company.code)}</div></div><div class="field"><label>Subdomain</label><div>${escapeHtml(company.subdomain||'—')}</div></div></div><div class="actions"><button class="primary" id="companyInviteUserBtn" type="button">Invite User</button></div><p class="muted">Invite a user to this selected company. The invitation is sent through the GUVEL email flow.</p></div>`;document.getElementById('backToCompanies').onclick=()=>render();document.getElementById('companyInviteUserBtn').onclick=showInviteDialog;}
-
+function page(){switch(current){case'Dashboard':return dashboard();case'Capture':return '';case'Customers':return customersPage();case'Part Numbers':return partNumbersPage();case'Machines':return machinesPage();case'Catalog':return catalogPage();case'Registers':return registersPage();case'Personnel':return '';case'Users':return usersPage();case'Settings':return shiftsPage();default:return '';}}
 async function render(){
   try{
     if(!view) throw new Error('Application view container was not found.');
@@ -1223,7 +1242,6 @@ async function render(){
     if(current==='Catalog') bindCatalog();
     if(current==='Registers') bindRegisters();
     if(current==='Users') bindUsers();
-    if(current==='Company Administration') await bindCompanyAdministration();
   }catch(error){
     console.error('GUVEL render error:',error);
     view.innerHTML=`<div class="panel"><h2>Module loading error</h2><p>${escapeHtml(error.message||'Unknown error')}</p></div>`;
@@ -1313,8 +1331,10 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
-    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
+    const inviteOrigin=buildPortalOrigin('');
+    const inviteRedirectUrl=new URL(`${inviteOrigin}/`);
+    inviteRedirectUrl.searchParams.set('invite',pendingInvitationToken);
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:inviteRedirectUrl.toString()}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
     if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
@@ -1374,28 +1394,11 @@ async function bootstrapSession(){
   currentUser=session.user;
   try{
     const membership=await loadMembership();
-    if(!membership){
-      const {data:isSuperAdmin,error:superAdminError}=await sb.rpc('is_guvel_platform_super_admin');
-      if(superAdminError) throw superAdminError;
-      if(isSuperAdmin===true){showCompanySetup();return;}
-      showAccessPending();
-      return;
-    }
+    if(!membership){showCompanySetup();return;}
     showApp(); renderNav(); render();
   }catch(e){showAuth(e.message||'Unable to load your company access.');}
 }
-function showAccessPending(){
-  document.getElementById('authMode').textContent='Access Pending';
-  document.getElementById('loginForm').classList.add('hidden');
-  document.getElementById('signupForm').classList.add('hidden');
-  document.getElementById('companySetup').classList.add('hidden');
-  document.getElementById('authMessage').textContent='Your account does not have an active company assignment. Ask a GUVEL company administrator to invite you.';
-  showAuth();
-}
 function showCompanySetup(){
-  // Company Setup is reserved for the GUVEL Platform Super Admin.
-  if(!currentUser) return showAccessPending();
-
   document.getElementById('authMode').textContent='Company Setup';
   document.getElementById('loginForm').classList.add('hidden');
   document.getElementById('signupForm').classList.add('hidden');
@@ -1406,13 +1409,10 @@ function showCompanySetup(){
 async function login(e){e.preventDefault(); const email=document.getElementById('loginEmail').value.trim(), password=document.getElementById('loginPassword').value; const r=await sb.auth.signInWithPassword({email,password}); if(r.error)return authMsg(r.error.message,true); currentUser=r.data.user; await bootstrapSession();}
 async function signup(e){e.preventDefault(); const full_name=document.getElementById('signupName').value.trim(), email=document.getElementById('signupEmail').value.trim(), password=document.getElementById('signupPassword').value; const r=await sb.auth.signUp({email,password,options:{data:{full_name}}}); if(r.error)return authMsg(r.error.message,true); if(!r.data.session){authMsg('Account created. Check your email to confirm the account, then sign in.',false);return;} currentUser=r.data.user; await bootstrapSession();}
 function authMsg(msg,error=false){const el=document.getElementById('authMessage');el.textContent=msg;el.className='auth-message '+(error?'error':'success');}
-let companySubdomainCheckTimer=null;
-async function checkCompanySubdomainAvailability(value){const subdomain=String(value||'').trim().toLowerCase();const msg=document.getElementById('companySubdomainAvailability');if(!msg)return false;if(!subdomain){msg.textContent='';msg.className='auth-message';return false;}if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdomain)){msg.textContent='Use lowercase letters, numbers and internal hyphens only.';msg.className='auth-message error';return false;}msg.textContent='Checking address...';msg.className='auth-message';try{const {data,error}=await sb.rpc('is_company_subdomain_available',{target_subdomain:subdomain});if(error)throw error;const available=data===true;if(available){msg.textContent=`Available: https://${subdomain}.${GUVEL_BASE_DOMAIN}`;msg.className='auth-message success';}else{msg.textContent='This company address is already in use or reserved.';msg.className='auth-message error';}return available;}catch(err){msg.textContent=err.message||'Unable to validate the company address.';msg.className='auth-message error';return false;}}
-async function createCompany(e){e.preventDefault();const name=document.getElementById('newCompanyName').value.trim(),code=document.getElementById('newCompanyCode').value.trim(),subdomain=document.getElementById('newCompanySubdomain').value.trim().toLowerCase();if(!name||!code||!subdomain)return authMsg('Company name, code and subdomain are required.',true);if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdomain))return authMsg('Subdomain must use lowercase letters, numbers and internal hyphens only.',true);const available=await checkCompanySubdomainAvailability(subdomain);if(!available)return authMsg('Choose another company address.',true);const btn=e.submitter||document.querySelector('#companySetup button[type=submit]');if(btn)btn.disabled=true;authMsg('Creating your company...');try{const {data,error}=await sb.rpc('create_company_for_current_user',{target_name:name,target_code:code,target_subdomain:subdomain});if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row?.id)throw new Error('Company was created but its identity could not be loaded.');activeCompanyId=row.id;await loadMembership();showApp();renderNav();render();}catch(err){authMsg(err.message||'Unable to create your company.',true);}finally{if(btn)btn.disabled=false;}}
+async function createCompany(e){e.preventDefault(); const name=document.getElementById('newCompanyName').value.trim(), code=document.getElementById('newCompanyCode').value.trim(), subdomain=document.getElementById('newCompanySubdomain')?.value.trim().toLowerCase()||''; if(!name||!code||!subdomain)return authMsg('Company name, code and subdomain are required.',true); if(!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdomain))return authMsg('Subdomain must use lowercase letters, numbers and internal hyphens only.',true); const {data,error}=await sb.from('companies').insert({name,code,subdomain,created_by:currentUser.id}).select().single(); if(error)return authMsg(error.message,true); activeCompanyId=data.id; await loadMembership(); showApp(); renderNav(); render();}
 async function logout(){await sb.auth.signOut();activeCompanyId=null;currentUser=null;showAuth('Signed out successfully.');}
 function bindAuth(){
  document.getElementById('loginForm').onsubmit=login; document.getElementById('signupForm').onsubmit=signup; document.getElementById('companySetup').onsubmit=createCompany;
- document.getElementById('newCompanySubdomain')?.addEventListener('input',()=>{clearTimeout(companySubdomainCheckTimer);companySubdomainCheckTimer=setTimeout(()=>checkCompanySubdomainAvailability(document.getElementById('newCompanySubdomain').value),350);});
  document.getElementById('showSignup').onclick=()=>{document.getElementById('authMode').textContent='Create Account';document.getElementById('loginForm').classList.add('hidden');document.getElementById('signupForm').classList.remove('hidden');authMsg('');};
  document.getElementById('showLogin').onclick=()=>{document.getElementById('authMode').textContent='Sign In';document.getElementById('signupForm').classList.add('hidden');document.getElementById('loginForm').classList.remove('hidden');authMsg('');};
  document.getElementById('logoutBtn').onclick=logout;
@@ -1892,8 +1892,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
   if(!sb){bootstrapSession();return;}
   const inviteHandled=await bootstrapInvitationFlow();
   if(!inviteHandled)bootstrapSession();
-  // Intentionally no global auth listener here.
-  // Normal login/session bootstrap must remain isolated from invitation onboarding.
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    const urlToken=getInvitationTokenFromUrl();
+    if(urlToken) {
+      pendingInvitationToken=urlToken;
+      localStorage.setItem('guvel_pending_invitation_token',urlToken);
+    }
+    if(session&&pendingInvitationToken&&!document.getElementById('inviteScreen')?.classList.contains('hidden')){
+      currentUser=session.user;
+      setTimeout(()=>acceptPendingInvitation(),0);
+    }
+  });
 });
 /* GUVEL cursor — desktop only */
 (()=>{
