@@ -38,32 +38,27 @@ Deno.serve(async (request) => {
     if (!user) return json({ error: "Not authenticated" }, 401);
 
     const body = await request.json();
-    const company_id = String(body.company_id || "").trim();
-    const name = String(body.name || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const role = String(body.role || "viewer").trim().toLowerCase();
-    if (!company_id || !name || !email) return json({ error: "Company, name and email are required" }, 400);
-    if (!["owner", "admin", "manager", "supervisor", "viewer"].includes(role)) return json({ error: "Invalid role" }, 400);
+    const invitation_id = String(body.invitation_id || "").trim();
+    if (!invitation_id) return json({ error: "invitation_id is required" }, 400);
 
-    const { data: membership } = await admin.from("company_members")
-      .select("role,is_active").eq("company_id", company_id).eq("user_id", user.id).maybeSingle();
-    if (!membership?.is_active || !["owner", "admin"].includes(membership.role))
-      return json({ error: "Only Owner or Admin can invite users" }, 403);
-
-    const { data: invitation, error: invitationError } = await supabase.rpc("create_company_invitation", {
-      target_company_id: company_id, target_name: name, target_email: email, target_role: role,
-    });
-    if (invitationError) return json({ error: invitationError.message }, 400);
-    const row = Array.isArray(invitation) ? invitation[0] : invitation;
-    const token = row?.invitation_token;
-    if (!token) return json({ error: "Invitation token was not generated" }, 500);
+    const { data: invitation, error: invitationError } = await admin.from("company_invitations")
+      .select("id,company_id,email,full_name,role,status,expires_at")
+      .eq("id", invitation_id)
+      .maybeSingle();
+    if (invitationError) return json({ error: `Invitation lookup failed: ${invitationError.message}` }, 500);
+    if (!invitation) return json({ error: "Invitation not found" }, 404);
+    if (invitation.status !== "pending") return json({ error: "Invitation is not pending" }, 409);
+    if (invitation.expires_at && new Date(invitation.expires_at).getTime() < Date.now()) return json({ error: "Invitation has expired" }, 409);
 
     const { data: company, error: companyError } = await admin.from("companies")
-      .select("name,subdomain").eq("id", company_id).maybeSingle();
+      .select("name,subdomain").eq("id", invitation.company_id).maybeSingle();
     if (companyError || !company) return json({ error: "Company could not be loaded" }, 500);
 
     const appOrigin = `https://${company.subdomain}.guvelsystems.com`;
-    const inviteUrl = `${appOrigin}/?invite=${encodeURIComponent(token)}`;
+    const inviteUrl = `${appOrigin}/?invite=${encodeURIComponent(invitation.id)}`;
+    const name = invitation.full_name;
+    const email = invitation.email;
+    const role = invitation.role;
     const from = Deno.env.get("RESEND_FROM") || "GUVEL <noreply@guvelsystems.com>";
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return json({ error: "RESEND_API_KEY is not configured" }, 500);

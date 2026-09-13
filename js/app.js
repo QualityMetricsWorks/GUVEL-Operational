@@ -1175,7 +1175,11 @@ async function createInvitation(){
   if(!name||!email){msg.className='status error';msg.textContent='Name and email are required.';return;}
   btn.disabled=true; msg.className='status'; msg.textContent='Sending GUVEL invitation...';
   try{
-    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{company_id:activeCompanyId,name,email,role}});
+    const {data:invitation,error:invitationError}=await sb.rpc('create_company_invitation_as_platform_admin',{p_company_id:activeCompanyId,p_email:email,p_full_name:name,p_role:role});
+    if(invitationError)throw invitationError;
+    const createdInvitation=Array.isArray(invitation)?invitation[0]:invitation;
+    if(!createdInvitation?.id)throw new Error('The invitation record was not created.');
+    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{invitation_id:createdInvitation.id}});
     if(error)throw error;
     if(!data?.success)throw new Error(data?.error||'The invitation could not be sent.');
     msg.className='status success';
