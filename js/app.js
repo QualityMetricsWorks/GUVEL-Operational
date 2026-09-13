@@ -1272,7 +1272,10 @@ async function resolveTenantCompany(){
 }
 
 
-let pendingInvitationToken='';
+let pendingInvitationToken='';let pendingInvitationOrigin='';
+function getCurrentPortalOrigin(){
+  return window.location.origin;
+}
 function getInvitationTokenFromUrl(){try{return (new URLSearchParams(window.location.search).get('invite')||'').trim();}catch{return '';}}
 function showInviteScreen(message='',error=false){
   const screen=document.getElementById('inviteScreen'), auth=document.getElementById('authScreen');
@@ -1313,7 +1316,10 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
+    const inviteOrigin =
+  pendingInvitationOrigin ||
+  localStorage.getItem('guvel_pending_invitation_origin') ||
+  window.location.origin;
     const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
@@ -1327,9 +1333,26 @@ function bindInviteScreen(){
   const login=document.getElementById('inviteGoLogin'); if(login)login.onclick=()=>{hideInviteScreen();showAuth();document.getElementById('loginEmail').value=document.getElementById('inviteSignupEmail')?.value||'';};
 }
 async function bootstrapInvitationFlow(){
-  pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
+  pendingInvitationToken =
+    getInvitationTokenFromUrl() ||
+    localStorage.getItem('guvel_pending_invitation_token') ||
+    '';
+
+  pendingInvitationOrigin =
+    localStorage.getItem('guvel_pending_invitation_origin') ||
+    getCurrentPortalOrigin();
+
   if(!pendingInvitationToken)return false;
-  localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
+
+  localStorage.setItem(
+    'guvel_pending_invitation_token',
+    pendingInvitationToken
+  );
+
+  localStorage.setItem(
+    'guvel_pending_invitation_origin',
+    pendingInvitationOrigin
+  );
   bindInviteScreen();
   if(getTenantSubdomainFromHost()){
     try{await resolveTenantCompany();}catch(e){showInviteScreen(e.message||'This company address is unavailable.',true);return true;}
