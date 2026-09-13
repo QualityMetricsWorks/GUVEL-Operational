@@ -26,12 +26,12 @@ Deno.serve(async (request) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      (Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY"))!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      (Deno.env.get("SUPABASE_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -41,6 +41,7 @@ Deno.serve(async (request) => {
     const invitation_id = String(body.invitation_id || "").trim();
     const invitation_token = String(body.invitation_token || "").trim();
     if (!invitation_id) return json({ error: "invitation_id is required" }, 400);
+    if (!invitation_token) return json({ error: "invitation_token is required" }, 400);
 
     const { data: invitation, error: invitationError } = await admin.from("company_invitations")
       .select("id,company_id,email,invited_name,role,status,expires_at")
@@ -56,9 +57,8 @@ Deno.serve(async (request) => {
     if (companyError || !company) return json({ error: "Company could not be loaded" }, 500);
 
     const appOrigin = `https://${company.subdomain}.guvelsystems.com`;
-    if (!invitation_token) return json({ error: "invitation_token is required" }, 400);
     const inviteUrl = `${appOrigin}/?invite=${encodeURIComponent(invitation_token)}`;
-    const name = invitation.full_name;
+    const name = invitation.invited_name || "GUVEL user";
     const email = invitation.email;
     const role = invitation.role;
     const from = Deno.env.get("RESEND_FROM") || "GUVEL <noreply@guvelsystems.com>";

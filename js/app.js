@@ -1892,12 +1892,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
   if(!sb){bootstrapSession();return;}
   const inviteHandled=await bootstrapInvitationFlow();
   if(!inviteHandled)bootstrapSession();
-  sb.auth.onAuthStateChange(async(event,session)=>{
-    if(session&&pendingInvitationToken&&!document.getElementById('inviteScreen')?.classList.contains('hidden')){
-      currentUser=session.user;
-      setTimeout(()=>acceptPendingInvitation(),0);
-    }
-  });
+  // Intentionally no global auth listener here.
+  // Normal login/session bootstrap must remain isolated from invitation onboarding.
 });
 /* GUVEL cursor — desktop only */
 (()=>{
