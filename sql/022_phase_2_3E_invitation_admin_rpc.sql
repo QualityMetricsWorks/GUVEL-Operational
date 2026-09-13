@@ -24,7 +24,7 @@ begin
     raise exception 'Only GUVEL platform super admin can create invitations';
   end if;
 
-  if lower(trim(p_role)) not in ('owner','admin','supervisor','viewer') then
+  if lower(trim(p_role)) not in ('owner','admin','manager','supervisor','viewer') then
     raise exception 'Invalid invitation role';
   end if;
 

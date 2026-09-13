@@ -43,7 +43,7 @@ Deno.serve(async (request) => {
     const email = String(body.email || "").trim().toLowerCase();
     const role = String(body.role || "viewer").trim().toLowerCase();
     if (!company_id || !name || !email) return json({ error: "Company, name and email are required" }, 400);
-    if (!["admin", "manager", "supervisor", "viewer"].includes(role)) return json({ error: "Invalid role" }, 400);
+    if (!["owner", "admin", "manager", "supervisor", "viewer"].includes(role)) return json({ error: "Invalid role" }, 400);
 
     const { data: membership } = await admin.from("company_members")
       .select("role,is_active").eq("company_id", company_id).eq("user_id", user.id).maybeSingle();
