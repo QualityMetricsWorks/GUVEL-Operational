@@ -39,10 +39,12 @@ Deno.serve(async (request) => {
 
     const body = await request.json();
     const invitation_id = String(body.invitation_id || "").trim();
+    const invitation_token = String(body.invitation_token || "").trim();
     if (!invitation_id) return json({ error: "invitation_id is required" }, 400);
+    if (!invitation_token) return json({ error: "invitation_token is required" }, 400);
 
     const { data: invitation, error: invitationError } = await admin.from("company_invitations")
-      .select("id,company_id,email,full_name,role,status,expires_at")
+      .select("id,company_id,email,invited_name,role,status,expires_at")
       .eq("id", invitation_id)
       .maybeSingle();
     if (invitationError) return json({ error: `Invitation lookup failed: ${invitationError.message}` }, 500);
@@ -55,8 +57,8 @@ Deno.serve(async (request) => {
     if (companyError || !company) return json({ error: "Company could not be loaded" }, 500);
 
     const appOrigin = `https://${company.subdomain}.guvelsystems.com`;
-    const inviteUrl = `${appOrigin}/?invite=${encodeURIComponent(invitation.id)}`;
-    const name = invitation.full_name;
+    const inviteUrl = `${appOrigin}/?invite=${encodeURIComponent(invitation_token)}`;
+    const name = invitation.invited_name || "GUVEL user";
     const email = invitation.email;
     const role = invitation.role;
     const from = Deno.env.get("RESEND_FROM") || "GUVEL <noreply@guvelsystems.com>";
