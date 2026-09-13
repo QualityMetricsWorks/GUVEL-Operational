@@ -1,0 +1,2 @@
+GUVEL Operational Phase 2.3.D — Company Administration
+Adds Super Admin-only Company Administration UI and company creation/listing.

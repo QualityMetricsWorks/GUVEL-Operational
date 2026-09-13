@@ -1,0 +1,2 @@
+GUVEL Operational — Phase 2.3.C Security Fix
+Company creation restricted to GUVEL Platform Super Admin.
