@@ -1175,11 +1175,14 @@ async function createInvitation(){
   if(!name||!email){msg.className='status error';msg.textContent='Name and email are required.';return;}
   btn.disabled=true; msg.className='status'; msg.textContent='Sending GUVEL invitation...';
   try{
-    const {data:invitation,error:invitationError}=await sb.rpc('create_company_invitation_as_platform_admin',{p_company_id:activeCompanyId,p_email:email,p_full_name:name,p_role:role});
+    const {data:invitation,error:invitationError}=await sb.rpc('create_company_invitation_with_token_as_platform_admin',{p_company_id:activeCompanyId,p_email:email,p_full_name:name,p_role:role});
     if(invitationError)throw invitationError;
     const createdInvitation=Array.isArray(invitation)?invitation[0]:invitation;
-    if(!createdInvitation?.id)throw new Error('The invitation record was not created.');
-    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{invitation_id:createdInvitation.id,invitation_token:createdInvitation.invitation_token}});
+    if(!createdInvitation?.invitation_id||!createdInvitation?.invitation_token)throw new Error('The invitation record or secure token was not created.');
+    const {data,error}=await sb.functions.invoke('send-company-invitation',{body:{
+      invitation_id:createdInvitation.invitation_id,
+      invitation_token:createdInvitation.invitation_token
+    }});
     if(error)throw error;
     if(!data?.success)throw new Error(data?.error||'The invitation could not be sent.');
     msg.className='status success';
@@ -1270,7 +1273,6 @@ async function resolveTenantCompany(){
 
 
 let pendingInvitationToken='';
-let pendingInvitationOrigin='';
 function getInvitationTokenFromUrl(){try{return (new URLSearchParams(window.location.search).get('invite')||'').trim();}catch{return '';}}
 function showInviteScreen(message='',error=false){
   const screen=document.getElementById('inviteScreen'), auth=document.getElementById('authScreen');
@@ -1311,7 +1313,7 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=pendingInvitationOrigin||localStorage.getItem('guvel_pending_invitation_origin')||window.location.origin;
+    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
     const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
@@ -1326,10 +1328,8 @@ function bindInviteScreen(){
 }
 async function bootstrapInvitationFlow(){
   pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
-  pendingInvitationOrigin=localStorage.getItem('guvel_pending_invitation_origin')||window.location.origin;
   if(!pendingInvitationToken)return false;
   localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
-  localStorage.setItem('guvel_pending_invitation_origin',pendingInvitationOrigin);
   bindInviteScreen();
   if(getTenantSubdomainFromHost()){
     try{await resolveTenantCompany();}catch(e){showInviteScreen(e.message||'This company address is unavailable.',true);return true;}
@@ -1893,13 +1893,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
   const inviteHandled=await bootstrapInvitationFlow();
   if(!inviteHandled)bootstrapSession();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(session&&(pendingInvitationToken||localStorage.getItem('guvel_pending_invitation_token'))){
+    if(session&&pendingInvitationToken&&!document.getElementById('inviteScreen')?.classList.contains('hidden')){
       currentUser=session.user;
-      pendingInvitationToken=pendingInvitationToken||localStorage.getItem('guvel_pending_invitation_token')||'';
-      setTimeout(async()=>{
-        const accepted=await acceptPendingInvitation();
-        if(!accepted && pendingInvitationToken) showInviteScreen('Your account is confirmed. We could not activate the invitation yet. Please keep this invitation link and try again.',true);
-      },0);
+      setTimeout(()=>acceptPendingInvitation(),0);
     }
   });
 });
