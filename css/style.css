@@ -590,3 +590,5 @@ body.app-active #authLaserCursor{display:none}
 .invite-token-details{margin-top:8px;font-size:11px;color:var(--muted)}
 .invite-token-details summary{cursor:pointer;font-weight:700}
 @media(max-width:720px){.invite-link-box{grid-template-columns:1fr}.invite-link-box button{width:100%}}
+
+.auth-hint{display:block;font-size:.78rem;color:#71808a;font-weight:400;margin-top:2px}.auth-form .auth-message{margin-top:4px}
