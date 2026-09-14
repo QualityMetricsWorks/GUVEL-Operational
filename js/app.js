@@ -1282,22 +1282,31 @@ function showInviteScreen(message='',error=false){
 }
 function hideInviteScreen(){document.getElementById('inviteScreen')?.classList.add('hidden');}
 function clearInvitationUrl(){try{const u=new URL(window.location.href);u.searchParams.delete('invite');history.replaceState({},document.title,u.pathname+u.search+u.hash);}catch{}}
+let invitationAcceptanceInProgress=false;
 async function acceptPendingInvitation(){
   const token=pendingInvitationToken||localStorage.getItem('guvel_pending_invitation_token')||'';
-  if(!token||!currentUser)return false;
+  if(!token||!currentUser||invitationAcceptanceInProgress)return false;
+  invitationAcceptanceInProgress=true;
   try{
     const {data,error}=await sb.rpc('accept_company_invitation',{target_invitation_token:token});
     if(error)throw error;
-    pendingInvitationToken='';localStorage.removeItem('guvel_pending_invitation_token');clearInvitationUrl();
+    pendingInvitationToken='';
+    localStorage.removeItem('guvel_pending_invitation_token');
+    clearInvitationUrl();
     currentUser=(await sb.auth.getUser()).data.user||currentUser;
     const membership=await loadMembership();
     if(!membership)throw new Error('Invitation accepted, but company membership could not be loaded.');
-    hideInviteScreen();showApp();renderNav();render();
+    hideInviteScreen();
+    showApp();
+    renderNav();
+    render();
     return true;
   }catch(e){
     const msg=document.getElementById('inviteMessage');
     if(msg){msg.textContent=e.message||'Unable to accept this invitation.';msg.className='auth-message error';}
     return false;
+  }finally{
+    invitationAcceptanceInProgress=false;
   }
 }
 async function inviteSignup(e){
@@ -1890,10 +1899,23 @@ function bindRegisters(){
 window.addEventListener('DOMContentLoaded',async()=>{
   bindAuth();
   if(!sb){bootstrapSession();return;}
+
+  // Invitation-only auth recovery:
+  // this listener is active only while an invitation token is present.
+  // It does not change the normal login/session flow.
+  sb.auth.onAuthStateChange((event,session)=>{
+    const token=pendingInvitationToken||getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
+    if(!token||!session?.user)return;
+    pendingInvitationToken=token;
+    currentUser=session.user;
+    if(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='USER_UPDATED'){
+      showInviteScreen('Validating your invitation...');
+      setTimeout(()=>{acceptPendingInvitation();},0);
+    }
+  });
+
   const inviteHandled=await bootstrapInvitationFlow();
   if(!inviteHandled)bootstrapSession();
-  // Intentionally no global auth listener here.
-  // Normal login/session bootstrap must remain isolated from invitation onboarding.
 });
 /* GUVEL cursor — desktop only */
 (()=>{
