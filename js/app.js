@@ -1282,31 +1282,22 @@ function showInviteScreen(message='',error=false){
 }
 function hideInviteScreen(){document.getElementById('inviteScreen')?.classList.add('hidden');}
 function clearInvitationUrl(){try{const u=new URL(window.location.href);u.searchParams.delete('invite');history.replaceState({},document.title,u.pathname+u.search+u.hash);}catch{}}
-let invitationAcceptanceInProgress=false;
 async function acceptPendingInvitation(){
   const token=pendingInvitationToken||localStorage.getItem('guvel_pending_invitation_token')||'';
-  if(!token||!currentUser||invitationAcceptanceInProgress)return false;
-  invitationAcceptanceInProgress=true;
+  if(!token||!currentUser)return false;
   try{
     const {data,error}=await sb.rpc('accept_company_invitation',{target_invitation_token:token});
     if(error)throw error;
-    pendingInvitationToken='';
-    localStorage.removeItem('guvel_pending_invitation_token');
-    clearInvitationUrl();
+    pendingInvitationToken='';localStorage.removeItem('guvel_pending_invitation_token');clearInvitationUrl();
     currentUser=(await sb.auth.getUser()).data.user||currentUser;
     const membership=await loadMembership();
     if(!membership)throw new Error('Invitation accepted, but company membership could not be loaded.');
-    hideInviteScreen();
-    showApp();
-    renderNav();
-    render();
+    hideInviteScreen();showApp();renderNav();render();
     return true;
   }catch(e){
     const msg=document.getElementById('inviteMessage');
     if(msg){msg.textContent=e.message||'Unable to accept this invitation.';msg.className='auth-message error';}
     return false;
-  }finally{
-    invitationAcceptanceInProgress=false;
   }
 }
 async function inviteSignup(e){
@@ -1322,9 +1313,8 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=getInvitationRedirectOrigin()||buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
-    const redirectUrl=`${inviteOrigin}/?invite=${encodeURIComponent(pendingInvitationToken)}`;
-    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:redirectUrl}});
+    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
     if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
@@ -1336,11 +1326,29 @@ function bindInviteScreen(){
   const form=document.getElementById('inviteSignupForm'); if(form)form.onsubmit=inviteSignup;
   const login=document.getElementById('inviteGoLogin'); if(login)login.onclick=()=>{hideInviteScreen();showAuth();document.getElementById('loginEmail').value=document.getElementById('inviteSignupEmail')?.value||'';};
 }
+function getInvitationRedirectOrigin(){
+  try {
+    return (localStorage.getItem("guvel_invitation_redirect_origin") || "").trim().replace(/\/$/, "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function saveInvitationRedirectOrigin(){
+  try {
+    const origin = window.location.origin;
+    const hostname = (window.location.hostname || "").toLowerCase();
+    const baseDomain = "guvelsystems.com";
+    if (origin && hostname.endsWith("." + baseDomain) && hostname !== baseDomain) {
+      localStorage.setItem("guvel_invitation_redirect_origin", origin);
+    }
+  } catch (error) {}
+}
+
 async function bootstrapInvitationFlow(){
   pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
   if(!pendingInvitationToken)return false;
   localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
-  saveInvitationRedirectOrigin();
   bindInviteScreen();
   if(getTenantSubdomainFromHost()){
     try{await resolveTenantCompany();}catch(e){showInviteScreen(e.message||'This company address is unavailable.',true);return true;}
@@ -1901,23 +1909,10 @@ function bindRegisters(){
 window.addEventListener('DOMContentLoaded',async()=>{
   bindAuth();
   if(!sb){bootstrapSession();return;}
-
-  // Invitation-only auth recovery:
-  // this listener is active only while an invitation token is present.
-  // It does not change the normal login/session flow.
-  sb.auth.onAuthStateChange((event,session)=>{
-    const token=pendingInvitationToken||getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
-    if(!token||!session?.user)return;
-    pendingInvitationToken=token;
-    currentUser=session.user;
-    if(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='USER_UPDATED'){
-      showInviteScreen('Validating your invitation...');
-      setTimeout(()=>{acceptPendingInvitation();},0);
-    }
-  });
-
   const inviteHandled=await bootstrapInvitationFlow();
   if(!inviteHandled)bootstrapSession();
+  // Intentionally no global auth listener here.
+  // Normal login/session bootstrap must remain isolated from invitation onboarding.
 });
 /* GUVEL cursor — desktop only */
 (()=>{
