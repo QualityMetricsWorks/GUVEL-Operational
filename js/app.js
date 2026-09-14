@@ -1322,8 +1322,9 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
-    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
+    const inviteOrigin=getInvitationRedirectOrigin()||buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
+    const redirectUrl=`${inviteOrigin}/?invite=${encodeURIComponent(pendingInvitationToken)}`;
+    const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:redirectUrl}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
     if(msg){msg.textContent='Account created. Check your email to confirm your account. Once confirmed, return to this invitation link to finish joining the company.';msg.className='auth-message success';}
@@ -1339,6 +1340,7 @@ async function bootstrapInvitationFlow(){
   pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
   if(!pendingInvitationToken)return false;
   localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
+  saveInvitationRedirectOrigin();
   bindInviteScreen();
   if(getTenantSubdomainFromHost()){
     try{await resolveTenantCompany();}catch(e){showInviteScreen(e.message||'This company address is unavailable.',true);return true;}
