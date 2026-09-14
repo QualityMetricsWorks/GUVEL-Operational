@@ -1313,7 +1313,7 @@ async function inviteSignup(e){
   if(!email||!password||!name)return;
   btn.disabled=true; if(msg){msg.textContent='Creating your GUVEL account...';msg.className='auth-message';}
   try{
-    const inviteOrigin=buildInvitationLink(pendingInvitationToken,tenantCompanyContext?.subdomain||window.GUVEL_CURRENT_COMPANY?.subdomain||'').split('?')[0];
+    const inviteOrigin=getInvitationRedirectOrigin()||window.location.origin;
     const r=await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:`${inviteOrigin}?invite=${encodeURIComponent(pendingInvitationToken)}`}});
     if(r.error)throw r.error;
     if(r.data.session){currentUser=r.data.user;await acceptPendingInvitation();return;}
@@ -1346,6 +1346,7 @@ function saveInvitationRedirectOrigin(){
 }
 
 async function bootstrapInvitationFlow(){
+  saveInvitationRedirectOrigin();
   pendingInvitationToken=getInvitationTokenFromUrl()||localStorage.getItem('guvel_pending_invitation_token')||'';
   if(!pendingInvitationToken)return false;
   localStorage.setItem('guvel_pending_invitation_token',pendingInvitationToken);
